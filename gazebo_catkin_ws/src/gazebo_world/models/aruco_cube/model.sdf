@@ -1,0 +1,80 @@
+<?xml version='1.0'?>
+<sdf version='1.5'>
+  <model name='aruco_cube'>
+
+    <!-- 我们现在只需要一个link，它同时拥有视觉、碰撞和物理属性 -->
+    <link name='link'>
+
+      <!-- 1. 添加物理属性 (质量和惯性) -->
+      <inertial>
+        <mass>0.003</mass> 
+        <inertia>
+          <ixx>0.00375</ixx><ixy>0</ixy><ixz>0</ixz>
+          <iyy>0.00375</iyy><iyz>0</iyz><izz>0.0075</izz>
+        </inertia>
+      </inertial>
+
+      <!-- 2. 碰撞体 -->
+      <collision name='collision'>
+        <geometry>
+          <box>
+            <size>0.15 0.15 0.15</size>
+          </box>
+        </geometry>
+      </collision>
+
+      <!-- 3. 视觉外观 (这是我们已知能成功显示的部分) -->
+      <visual name='visual'>
+        <geometry>
+          <box>
+            <size>0.15 0.15 0.15</size>
+          </box>
+        </geometry>
+        <material>
+          <script>
+            <uri>model://aruco_cube/materials/scripts</uri>
+            <uri>model://aruco_cube/materials/textures</uri>
+            <!-- 注意：这里的名字要和你 material 文件里的一致 -->
+            <name>ArucoCube/Marker</name> 
+          </script>
+          <!-- 保留这些能让纹理成功显示的光照属性 -->
+          <ambient>1 1 1 1</ambient>
+          <diffuse>1 1 1 1</diffuse>
+          <specular>0 0 0 1</specular>
+          <emissive>0 0 0 1</emissive>
+        </material>
+      </visual>
+
+      <gazebo>
+      <plugin name="underwater_object_plugin" filename="libuuv_underwater_object_ros_plugin.so">
+        <fluid_density>1000</fluid_density> <!-- 使用标准水的密度 -->
+        <flow_velocity_topic>hydrodynamics/current_velocity</flow_velocity_topic>
+        <debug>1</debug>
+        
+        <!-- 关键：将link name改成你模型中的link名字 -->
+        <link name="link"> 
+            <neutrally_buoyant>1</neutrally_buoyant>
+            <!-- 关键：使用你立方体的正确体积 -->
+            <volume>0.003375</volume> 
+            <!-- 关键：浮心对于均匀立方体在中心 -->
+            <center_of_buoyancy>0.0 0.0 0.0</center_of_buoyancy>
+            
+            <!-- 对于简单的立方体，我们可以简化水动力学模型，让插件自动估算 -->
+            <!-- 如果你想用精细模型，需要为你的立方体计算正确的参数 -->
+            <hydrodynamic_model>
+                <type>box</type>
+                <length>0.15</length>
+                <width>0.15</width>
+                <height>0.15</height>
+            </hydrodynamic_model>
+        </link>
+      </plugin>
+    </gazebo>
+
+    </link>
+
+    <!-- 5. 移除 <static>1</static>，让它变成动态物体 -->
+    <!-- <static>false</static> 是默认值, 所以不写也可以 -->
+
+  </model>
+</sdf>

@@ -1,0 +1,945 @@
+<?xml version="1.0"?>
+<robot 
+  name="$(arg namespace)"
+  xmlns:xacro="http://www.ros.org/wiki/xacro"
+  xmlns:uuv="http://www.ros.org/wiki/xacro">
+
+  <!-- =========================
+       基本参数（保持与原文件一致）
+       ========================= -->
+  <xacro:arg name="namespace" default="asv"/>
+  <xacro:arg name="color" default="Orange"/>
+  <xacro:arg name="debug" default="0"/>
+
+  <xacro:property name="namespace" value="$(arg namespace)"/>
+  <xacro:property name="color" value="$(arg color)"/>
+
+  <!-- 颜色材质，供可视化使用 -->
+  <material name="red"><color rgba="1 0 0 1"/></material>
+  <material name="green"><color rgba="0 1 0 1"/></material>
+
+  <!-- =========================================================
+       (A) 代替 gazebo_property.xacro 的 Gazebo 外观+摩擦设置（内联）
+       ========================================================= -->
+  <!-- base_link（颜色、摩擦） -->
+  <gazebo reference="${namespace}/base_link">
+    <material>Gazebo/$(arg color)</material>
+    <kp>10000000.0</kp>
+    <kd>1.0</kd>
+    <mu1>1000.0</mu1>
+    <mu2>1000.0</mu2>
+  </gazebo>
+
+  <!-- 顶盖 -->
+  <gazebo reference="Top Shell_link">
+    <material>Gazebo/$(arg color)</material>
+    <kp>10000000.0</kp>
+    <kd>1.0</kd>
+    <mu1>1000.0</mu1>
+    <mu2>1000.0</mu2>
+  </gazebo>
+
+  <!-- 电池 -->
+  <gazebo reference="Battery_link">
+    <kp>10000000.0</kp>
+    <kd>1.0</kd>
+    <mu1>1000.0</mu1>
+    <mu2>1000.0</mu2>
+    <material>Gazebo/Grey</material>
+  </gazebo>
+
+  <!-- 给所有小关节链接统一一个摩擦模板 -->
+  <xacro:macro name="gazebo_friction" params="link_name mu := 100.0">
+    <gazebo reference="${link_name}">
+      <kp>10000000.0</kp>
+      <kd>1.0</kd>
+      <mu1>${mu}</mu1>
+      <mu2>${mu}</mu2>
+    </gazebo>
+  </xacro:macro>
+  <xacro:gazebo_friction link_name="H1_link"/>
+  <xacro:gazebo_friction link_name="M1_link"/>
+  <xacro:gazebo_friction link_name="V1_link"/>
+  <xacro:gazebo_friction link_name="H2_link"/>
+  <xacro:gazebo_friction link_name="M2_link"/>
+  <xacro:gazebo_friction link_name="V2_link"/>
+  <xacro:gazebo_friction link_name="H3_link"/>
+  <xacro:gazebo_friction link_name="M3_link"/>
+  <xacro:gazebo_friction link_name="V3_link"/>
+  <xacro:gazebo_friction link_name="H4_link"/>
+  <xacro:gazebo_friction link_name="M4_link"/>
+  <xacro:gazebo_friction link_name="V4_link"/>
+
+  <!-- =========================================================
+       (B) 代替 gazebo_thruster.xacro 的推进器宏（内联）
+       ========================================================= -->
+  <xacro:macro name="gazebo_thruster_macro" params="namespace thruster_id parent_link *origin">
+    <!-- 推进器链接 -->
+    <link name="${namespace}/thruster_${thruster_id}">
+      <visual>
+        <geometry>
+          <mesh filename="package://gazebo_model/meshes/Thruster_${thruster_id}.STL" scale="1 1 1" />
+        </geometry>
+      </visual>
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.146852635906447" />
+        <inertia ixx="4.98302491544974E-06" 
+                 ixy="5.54383054279527E-06" 
+                 ixz="-7.47049423031916E-07"
+                 iyy="3.8882301456706E-05" 
+                 iyz="2.51886305536987E-07"
+                 izz="3.91500039538726E-05" />
+      </inertial>
+    </link>
+
+    <!-- 与父链接的关节 -->
+    <joint name="${namespace}/thruster_${thruster_id}_joint" type="continuous">
+      <xacro:insert_block name="origin" />
+      <axis xyz="-1 0 0" />
+      <parent link="${parent_link}" />
+      <child link="${namespace}/thruster_${thruster_id}" />
+    </joint>
+
+    <!-- Gazebo 推进器插件（uuv thruster） -->
+    <gazebo>
+      <plugin name="${namespace}_${thruster_id}_thruster_model" filename="libuuv_thruster_ros_plugin.so">
+        <linkName>${namespace}/thruster_${thruster_id}</linkName>
+        <jointName>${namespace}/thruster_${thruster_id}_joint</jointName>
+        <thrusterID>${thruster_id}</thrusterID>
+        <gain>1</gain>
+        <clampMax>100</clampMax>
+        <clampMin>0</clampMin>
+        <thrustMin>0</thrustMin>
+        <thrustMax>4</thrustMax>
+        <thrust_efficiency>1</thrust_efficiency>
+        <propeller_efficiency>1</propeller_efficiency>
+        <dynamics>
+          <type>FirstOrder</type>
+          <timeConstant>0.05</timeConstant>
+        </dynamics>
+        <conversion>
+          <type>Basic</type>
+          <rotorConstant>0.00031</rotorConstant>
+        </conversion>
+      </plugin>
+    </gazebo>
+
+    <gazebo reference="${namespace}/thruster_${thruster_id}">
+      <selfCollide>false</selfCollide>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- =========================================================
+       (C) 代替 sensor_snippets.xacro 的相机/IMU/压力 传感器宏（内联）
+       ========================================================= -->
+
+  <!-- 下视/默认相机（你文件中已经有下视相机，双目相机单独宏） -->
+  <xacro:macro name="default_stereo_camera" params="namespace">
+    <joint name="${namespace}/camera_joint" type="revolute">
+      <axis xyz="0 1 0" />
+      <origin xyz="0.1005 0 0.1829" rpy="0 0 1.5708"/>
+      <parent link="${namespace}/base_link"/>
+      <child link="${namespace}/camera_link"/>
+      <limit upper="0" lower="0" effort="0" velocity="0" />
+    </joint>
+
+    <link name="${namespace}/camera_link">
+      <collision>
+        <origin xyz="0.00 0.00 0.00" rpy="0 0 0"/>
+        <geometry><box size="0.0752 0.005 0.021"/></geometry>
+      </collision>
+      <visual>
+        <origin xyz="0.00 0.00 0.00" rpy="0 0 0"/>
+        <geometry><box size="0.0752 0.005 0.020"/></geometry>
+        <material name="red"/>
+      </visual>
+      <inertial>
+        <mass value="1e-5" />
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6" />
+      </inertial>
+    </link>
+
+    <gazebo reference="${namespace}/camera_link">
+      <sensor type="multicamera" name="stereo_camera">
+        <update_rate>30.0</update_rate>
+        <camera name="left">
+          <pose> 0 0 0 0 0 -1.5708</pose>
+          <horizontal_fov>1.3962634</horizontal_fov>
+          <image><width>640</width><height>480</height><format>R8G8B8</format></image>
+          <clip><near>0.02</near><far>300</far></clip>
+        </camera>
+        <camera name="right">
+          <pose> -0.062 0 0 0 0 -1.5708</pose>
+          <horizontal_fov>1.3962634</horizontal_fov>
+          <image><width>640</width><height>480</height><format>R8G8B8</format></image>
+          <clip><near>0.02</near><far>300</far></clip>
+        </camera>
+        <plugin name="${namespace}_stereo_camera_controller" filename="libgazebo_ros_multicamera.so">
+          <alwaysOn>true</alwaysOn>
+          <updateRate>30.0</updateRate>
+          <cameraName>${namespace}/camera</cameraName>
+          <imageTopicName>image_raw</imageTopicName>
+          <cameraInfoTopicName>camera_info</cameraInfoTopicName>
+          <frameName>camera_link</frameName>
+          <hackBaseline>0.062</hackBaseline>
+          <distortionK1>0.0</distortionK1>
+          <distortionK2>0.0</distortionK2>
+          <distortionK3>0.0</distortionK3>
+          <distortionT1>0.0</distortionT1>
+          <distortionT2>0.0</distortionT2>
+        </plugin>
+      </sensor>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- IMU 宏（合并你文件末尾那段 gazebo imu 配置，确保每台车都有） -->
+  <xacro:macro name="default_imu" params="namespace">
+    <joint name="${namespace}/imu_joint" type="revolute">
+      <axis xyz="0 1 0" />
+      <origin xyz="0.050 0.050 0.1766" rpy="0 0 0"/>
+      <parent link="${namespace}/base_link"/>
+      <child link="${namespace}/imu_link"/>
+      <limit upper="0" lower="0" effort="0" velocity="0" />
+    </joint>
+
+    <link name="${namespace}/imu_link">
+      <collision><geometry><box size="0.03 0.05 0.015"/></geometry></collision>
+      <visual><geometry><box size="0.03 0.05 0.015"/></geometry><material name="green"/></visual>
+      <inertial><mass value="1e-5"/><inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/></inertial>
+    </link>
+
+    <!-- 这里就是你原文件末尾的 imu gazebo 传感器块，合并到宏里避免重复 -->
+    <gazebo reference="${namespace}/imu_link">
+      <gravity>true</gravity>
+      <sensor name="${namespace}_imu_sensor" type="imu">
+        <always_on>true</always_on>
+        <update_rate>100</update_rate>
+        <visualize>false</visualize>
+        <plugin name="${namespace}_imu_plugin" filename="libgazebo_ros_imu_sensor.so">
+          <topicName>${namespace}/imu</topicName>
+          <frameName>${namespace}/imu_link</frameName>
+          <updateRateHZ>100.0</updateRateHZ>
+          <gaussianNoise>0.0</gaussianNoise>
+          <xyzOffset>0 0 0</xyzOffset>
+          <rpyOffset>0 0 0</rpyOffset>
+          <initialOrientationAsReference>false</initialOrientationAsReference>
+        </plugin>
+      </sensor>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- 压力（深度）传感器 -->
+  <xacro:macro name="default_pressure" params="namespace parent_link *origin">
+    <joint name="${namespace}/pressure_joint" type="fixed">
+      <xacro:insert_block name="origin"/>
+      <parent link="${parent_link}"/>
+      <child link="${namespace}/pressure_link"/>
+    </joint>
+    <link name="${namespace}/pressure_link">
+      <inertial><mass value="1e-5"/></inertial>
+      <visual><origin xyz="0 0 0" rpy="0 0 0"/><geometry><sphere radius="0.01"/></geometry></visual>
+    </link>
+    <gazebo>
+      <plugin name="${namespace}_pressure_sensor" filename="libuuv_gazebo_ros_pressure_plugin.so">
+        <bodyName>${namespace}/pressure_link</bodyName>
+        <topicName>${namespace}/pressure</topicName>
+      </plugin>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- =========================================================
+       (D) 你提供的主体结构（完整保留）
+       ========================================================= -->
+  <!-- base_link -->
+  <link name="${namespace}/base_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="2.70826235471542" />
+      <inertia
+        ixx="0.00653322692957748"
+        ixy="0.000787307121819496"
+        ixz="-7.49384535383265E-06"
+        iyy="0.00655832000221053"
+        iyz="0.000180332264806666"
+        izz="0.00476734231588251" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://gazebo_model/meshes/base_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://gazebo_model/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <link name="Battery_link">
+    <inertial>
+      <origin xyz="-0.000351497062103152 0.00239993267692041 0.0220017185925642" rpy="0 0 0" />
+      <mass value="0.635337597079477" />
+      <inertia
+        ixx="0.000938184864093474"
+        ixy="0.000274117687304383"
+        ixz="-8.04443379790982E-06"
+        iyy="0.00109389255926234"
+        iyz="-7.75721187546725E-06"
+        izz="0.00168540909680421" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://gazebo_model/meshes/Battery.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://gazebo_model/meshes/Battery.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="Battery" type="fixed">
+    <origin xyz="0 0 0.0705" rpy="-3.14159265358979 4.32963728535944E-17 2.3561944901924" />
+    <parent link="${namespace}/base_link" />
+    <child link="Battery_link" />
+    <axis xyz="0 0 0" />
+  </joint>
+
+  <link name="Top Shell_link">
+    <inertial>
+      <origin xyz="0.00511437536816834 0.102435251617468 -0.000268654809433278" rpy="0 0 0" />
+      <mass value="0.303528573365215" />
+      <inertia
+        ixx="0.00127110516707156"
+        ixy="3.18920705458061E-05"
+        ixz="-3.8807128770863E-07"
+        iyy="0.0022226132567841"
+        iyz="-1.06380078062948E-07"
+        izz="0.00111743773847049" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://gazebo_model/meshes/Top Shell.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://gazebo_model/meshes/Top Shell.STL" />
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="Top Shell" type="fixed">
+    <origin xyz="0 0 0.1034" rpy="1.5708 -1.2246E-16 -3.1416" />
+    <parent link="${namespace}/base_link" />
+    <child link="Top Shell_link" />
+    <axis xyz="0 0 0" />
+  </joint>
+
+  <!-- ===== H1/M1/V1 ===== -->
+  <link name="H1_link">
+    <inertial>
+      <origin xyz="0.0592750727916101 -0.00794368050094316 -0.0555211081140299" rpy="0 0 0" />
+      <mass value="0.146852635906447" />
+      <inertia
+        ixx="4.98302491544974E-06"
+        ixy="5.54383054279527E-06"
+        ixz="-7.47049423031916E-07"
+        iyy="3.8882301456706E-05"
+        iyz="2.51886305536987E-07"
+        izz="3.91500039538726E-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry><mesh filename="package://gazebo_model/meshes/H1.STL" /></geometry>
+      <material name=""><color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" /></material>
+    </visual>
+    <collision><origin xyz="0 0 0" rpy="0 0 0" /><geometry><mesh filename="package://gazebo_model/meshes/H1.STL" /></geometry></collision>
+  </link>
+
+  <joint name="H1" type="revolute">
+    <origin xyz="0.027577 0.027577 0.0766" rpy="1.5708 0 0" />
+    <parent link="${namespace}/base_link" />
+    <child link="H1_link" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-1.046" upper="1.046" effort="15" velocity="1" />
+  </joint>
+
+  <link name="M1_link">
+    <inertial>
+      <origin xyz="0.0280960077137827 0.0185404891966207 -0.00242957948861526" rpy="0 0 0" />
+      <mass value="0.0347357843041448" />
+      <inertia
+        ixx="5.81676015772907E-06"
+        ixy="-6.02978873453925E-07"
+        ixz="2.71963966514157E-07"
+        iyy="1.12430262321068E-05"
+        iyz="-1.0996825089196E-07"
+        izz="1.66725261735855E-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry><mesh filename="package://gazebo_model/meshes/M1.STL" /></geometry>
+      <material name=""><color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" /></material>
+    </visual>
+    <collision><origin xyz="0 0 0" rpy="0 0 0" /><geometry><mesh filename="package://gazebo_model/meshes/M1.STL" /></geometry></collision>
+  </link>
+
+  <joint name="M1" type="revolute">
+    <origin xyz="0.0895134133104177 -0.00980000000000003 -0.0477261860776503" rpy="-1.5707963267949 0.751070327195058 -6.61984763855109E-17" />
+    <parent link="H1_link" />
+    <child link="M1_link" />
+    <axis xyz="0 1 0" />
+    <limit lower="-0.872" upper="2.093" effort="15" velocity="1" />
+  </joint>
+
+  <link name="V1_link">
+    <inertial>
+      <origin xyz="0.0213406749085451 0.0238474683493839 0.0095445008008978" rpy="0 0 0" />
+      <mass value="0.2453812859425096" />
+      <inertia
+        ixx="4.4697015603334376e-05"
+        ixy="2.43239752376456e-06"
+        ixz="-2.2786141366568183e-05"
+        iyy="0.00012741630399627725"
+        iyz="9.312832071655624e-07"
+        izz="8.936005002565801e-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry><mesh filename="package://gazebo_model/meshes/V1.STL" /></geometry>
+      <material name=""><color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" /></material>
+    </visual>
+    <collision><origin xyz="0 0 0" rpy="0 0 0" /><geometry><mesh filename="package://gazebo_model/meshes/V1.STL" /></geometry></collision>
+  </link>
+
+  <joint name="V1" type="revolute">
+    <origin xyz="0.0618781615777637 0 -0.00388498645514862" rpy="1.67654496324973E-16 -1.56521850540976E-16 3.33066907387547E-16" />
+    <parent link="M1_link" />
+    <child link="V1_link" />
+    <axis xyz="0 1 0" />
+    <limit lower="-0.698" upper="1.919" effort="15" velocity="1" />
+  </joint>
+
+  <!-- ===== H2/M2/V2 ===== -->
+  <link name="H2_link">
+    <inertial>
+      <origin xyz="-0.056988280972186 -0.00794368049023023 -0.057865909942735" rpy="0 0 0" />
+      <mass value="0.146852635906447" />
+      <inertia
+        ixx="4.98302491544974E-06"
+        ixy="5.54383054279527E-06"
+        ixz="-7.47049423031916E-07"
+        iyy="3.8882301456706E-05"
+        iyz="2.51886305536987E-07"
+        izz="3.91500039538726E-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry><mesh filename="package://gazebo_model/meshes/H2.STL" /></geometry>
+      <material name=""><color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" /></material>
+    </visual>
+    <collision><origin xyz="0 0 0" rpy="0 0 0" /><geometry><mesh filename="package://gazebo_model/meshes/H2.STL" /></geometry></collision>
+  </link>
+
+  <joint name="H2" type="revolute">
+    <origin xyz="-0.027577 0.027577 0.0766" rpy="1.5708 0 0" />
+    <parent link="${namespace}/base_link" />
+    <child link="H2_link" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1.046" upper="1.046" effort="15" velocity="1" />
+  </joint>
+
+  <link name="M2_link">
+    <inertial>
+      <origin xyz="-0.0281862973130523 0.018540489043943 0.000906172736551691" rpy="0 0 0" />
+      <mass value="0.0347357843041448" />
+      <inertia
+        ixx="5.81676015772907E-06"
+        ixy="-6.02978873453925E-07"
+        ixz="2.71963966514157E-07"
+        iyy="1.12430262321068E-05"
+        iyz="-1.0996825089196E-07"
+        izz="1.66725261735855E-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry><mesh filename="package://gazebo_model/meshes/M2.STL" /></geometry>
+      <material name=""><color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" /></material>
+    </visual>
+    <collision><origin xyz="0 0 0" rpy="0 0 0" /><geometry><mesh filename="package://gazebo_model/meshes/M2.STL" /></geometry></collision>
+  </link>
+
+  <joint name="M2" type="revolute">
+    <origin xyz="-0.0499531465792657 -0.00980000000000002 -0.0882899946020522" rpy="1.5707963267949 -0.794677615099 4.64849568869466E-16" />
+    <parent link="H2_link" />
+    <child link="M2_link" />
+    <axis xyz="0 1 0" />
+    <limit lower="-0.872" upper="2.093" effort="15" velocity="1" />
+  </joint>
+
+  <link name="V2_link">
+    <inertial>
+      <origin xyz="-0.021192784026013 0.0238474684445859 -0.0098685262917111" rpy="0 0 0" />
+      <mass value="0.2453812859425096" />
+      <inertia
+        ixx="4.4697015603334376e-05"
+        ixy="2.43239752376456e-06"
+        ixz="-2.2786141366568183e-05"
+        iyy="0.00012741630399627725"
+        iyz="9.312832071655624e-07"
+        izz="8.936005002565801e-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry><mesh filename="package://gazebo_model/meshes/V2.STL" /></geometry>
+      <material name=""><color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" /></material>
+    </visual>
+    <collision><origin xyz="0 0 0" rpy="0 0 0" /><geometry><mesh filename="package://gazebo_model/meshes/V2.STL" /></geometry></collision>
+  </link>
+
+  <joint name="V2" type="revolute">
+    <origin xyz="-0.0619977174380092 0 0.000532007966764822" rpy="-5.62560898242795E-17 5.73099506607656E-17 0" />
+    <parent link="M2_link" />
+    <child link="V2_link" />
+    <axis xyz="0 1 0" />
+    <limit lower="-0.698" upper="1.919" effort="15" velocity="1" />     
+  </joint>
+
+  <!-- ===== H3/M3/V3 ===== -->
+  <link name="H3_link">
+    <inertial>
+      <origin xyz="-0.0582901267732215 -0.0079436804601019 0.0565542996416611" rpy="0 0 0" />
+      <mass value="0.146852635906447" />
+      <inertia
+        ixx="4.98302491544974E-06"
+        ixy="5.54383054279527E-06"
+        ixz="-7.47049423031916E-07"
+        iyy="3.8882301456706E-05"
+        iyz="2.51886305536987E-07"
+        izz="3.91500039538726E-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry><mesh filename="package://gazebo_model/meshes/H3.STL" /></geometry>
+      <material name=""><color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" /></material>
+    </visual>
+    <collision><origin xyz="0 0 0" rpy="0 0 0" /><geometry><mesh filename="package://gazebo_model/meshes/H3.STL" /></geometry></collision>
+  </link>
+
+  <joint name="H3" type="revolute">
+    <origin xyz="-0.027577 -0.027577 0.0766" rpy="1.5708 0 0" />
+    <parent link="${namespace}/base_link" />
+    <child link="H3_link" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-1.046" upper="1.046" effort="15" velocity="1" />
+  </joint>
+
+  <link name="M3_link">
+    <inertial>
+      <origin xyz="-0.0281907835574335 0.0185404890355505 0.000753808379119411" rpy="0 0 0" />
+      <mass value="0.0347357843041448" />
+      <inertia
+        ixx="5.81676015772907E-06"
+        ixy="-6.02978873453925E-07"
+        ixz="2.71963966514157E-07"
+        iyy="1.12430262321068E-05"
+        iyz="-1.0996825089196E-07"
+        izz="1.66725261735855E-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry><mesh filename="package://gazebo_model/meshes/M3.STL" /></geometry>
+      <material name=""><color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" /></material>
+    </visual>
+    <collision><origin xyz="0 0 0" rpy="0 0 0" /><geometry><mesh filename="package://gazebo_model/meshes/M3.STL" /></geometry></collision>
+  </link>
+
+  <joint name="M3" type="revolute">
+    <origin xyz="-0.0886607936409851 -0.00980000000000002 0.0492920244152197" rpy="1.5707963267949 0.76864636196062 5.44436816467481E-17" />
+    <parent link="H3_link" />
+    <child link="M3_link" />
+    <axis xyz="0 1 0" />
+    <limit lower="-0.872" upper="2.093" effort="15" velocity="1" />      
+  </joint>
+
+  <link name="V3_link">
+    <inertial>
+      <origin xyz="-0.0210870804855072 0.0238474683954362 -0.010092420158056" rpy="0 0 0" />
+      <mass value="0.2453812859425096" />
+      <inertia
+        ixx="4.4697015603334376e-05"
+        ixy="2.43239752376456e-06"
+        ixz="-2.2786141366568183e-05"
+        iyy="0.00012741630399627725"
+        iyz="9.312832071655624e-07"
+        izz="8.936005002565801e-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry><mesh filename="package://gazebo_model/meshes/V3.STL" /></geometry>
+      <material name=""><color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" /></material>
+    </visual>
+    <collision><origin xyz="0 0 0" rpy="0 0 0" /><geometry><mesh filename="package://gazebo_model/meshes/V3.STL" /></geometry></collision>
+  </link>
+
+  <joint name="V3" type="revolute">
+    <origin xyz="-0.0619996873622797 0 0.000196893320854818" rpy="3.05324980954171E-16 2.95263107338931E-16 -2.22044604925031E-16" />
+    <parent link="M3_link" />
+    <child link="V3_link" />
+    <axis xyz="0 1 0" />
+    <limit lower="-0.698" upper="1.919" effort="15" velocity="1" />      
+  </joint>
+
+  <!-- ===== H4/M4/V4 ===== -->
+  <link name="H4_link">
+    <inertial>
+      <origin xyz="0.057510876848031 -0.00712868048132134 0.0573465495469481" rpy="0 0 0" />
+      <mass value="0.146852635906447" />
+      <inertia
+        ixx="4.98302491544974E-06"
+        ixy="5.54383054279527E-06"
+        ixz="-7.47049423031916E-07"
+        iyy="3.8882301456706E-05"
+        iyz="2.51886305536987E-07"
+        izz="3.91500039538726E-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry><mesh filename="package://gazebo_model/meshes/H4.STL" /></geometry>
+      <material name=""><color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" /></material>
+    </visual>
+    <collision><origin xyz="0 0 0" rpy="0 0 0" /><geometry><mesh filename="package://gazebo_model/meshes/H4.STL" /></geometry></collision>
+  </link>
+
+  <joint name="H4" type="revolute">
+    <origin xyz="0.027577 -0.027577 0.075785" rpy="1.5708 0 0" />
+    <parent link="${namespace}/base_link" />
+    <child link="H4_link" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1.046" upper="1.046" effort="15" velocity="1" />
+  </joint>
+
+  <link name="M4_link">
+    <inertial>
+      <origin xyz="0.0281871447109394 0.0193554890343648 -0.000879419575001067" rpy="0 0 0" />
+      <mass value="0.0347357843041448" />
+      <inertia
+        ixx="5.81676015772907E-06"
+        ixy="-6.02978873453925E-07"
+        ixz="2.71963966514157E-07"
+        iyy="1.12430262321068E-05"
+        iyz="-1.0996825089196E-07"
+        izz="1.66725261735855E-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry><mesh filename="package://gazebo_model/meshes/M4.STL" /></geometry>
+      <material name=""><color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" /></material>
+    </visual>
+    <collision><origin xyz="0 0 0" rpy="0 0 0" /><geometry><mesh filename="package://gazebo_model/meshes/M4.STL" /></geometry></collision>
+  </link>
+
+  <joint name="M4" type="revolute">
+    <origin xyz="0.0501756177709296 -0.00898499999999944 0.0884093751041459" rpy="-1.5707963267949 -0.785605813021169 -5.30008130128675E-17" />
+    <parent link="H4_link" />
+    <child link="M4_link" />
+    <axis xyz="0 1 0" />
+    <limit lower="-0.872" upper="2.093" effort="15" velocity="1" />
+  </joint>
+
+  <link name="V4_link">
+    <inertial>
+      <origin xyz="0.0211432737661687 0.0238474684812127 0.00997416073177607" rpy="0 0 0" />
+      <mass value="0.2453812859425096" />
+      <inertia
+        ixx="4.4697015603334376e-05"
+        ixy="2.43239752376456e-06"
+        ixz="-2.2786141366568183e-05"
+        iyy="0.00012741630399627725"
+        iyz="9.312832071655624e-07"
+        izz="8.936005002565801e-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry><mesh filename="package://gazebo_model/meshes/V4.STL" /></geometry>
+      <material name=""><color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" /></material>
+    </visual>
+    <collision><origin xyz="0 0 0" rpy="0 0 0" /><geometry><mesh filename="package://gazebo_model/meshes/V4.STL" /></geometry></collision>
+  </link>
+
+  <joint name="V4" type="revolute">
+    <origin xyz="0.06199819446243 0.000815000000000891 -0.000473163183953462" rpy="-1.84322624602994E-16 -1.84399189550061E-16 3.33066907387547E-16" />
+    <parent link="M4_link" />
+    <child link="V4_link" />
+    <axis xyz="0 1 0" />
+    <limit lower="-0.698" upper="1.919" effort="15" velocity="1" />     
+  </joint>
+
+  <!-- =========================================================
+       (E) 推进器实例（保持你给的四个安装位）
+       ========================================================= -->
+  <xacro:gazebo_thruster_macro namespace="${namespace}" thruster_id="0" parent_link="V1_link">
+    <origin xyz="0.0482854280918027 0.0233999999957737 0.020810331492412" rpy="1.5707963267949 0.268065374615461 1.72701466203991E-16" />
+  </xacro:gazebo_thruster_macro>
+
+  <xacro:gazebo_thruster_macro namespace="${namespace}" thruster_id="1" parent_link="V2_link">
+    <origin xyz="-0.0479627706530614 0.0233999999957736 -0.0215435627070956" rpy="-1.5707963267949 -0.252829410926519 3.14159265358979"/>
+  </xacro:gazebo_thruster_macro>
+
+  <xacro:gazebo_thruster_macro namespace="${namespace}" thruster_id="2" parent_link="V3_link">
+    <origin xyz="-0.047731918492312 0.0233999999957736 -0.0220503156411877" rpy="-1.5707963267949 -0.242238474233525 3.14159265358979" />
+  </xacro:gazebo_thruster_macro>
+
+  <xacro:gazebo_thruster_macro namespace="${namespace}" thruster_id="3" parent_link="V4_link">
+    <origin xyz="0.0478546657014151 0.0233999999957736 0.0217826406442958" rpy="1.5707963267949 0.247839140884787 1.71782302430407E-16"/>
+  </xacro:gazebo_thruster_macro>
+
+  <!-- =========================================================
+       (F) 下视相机（你文件已有，完整保留）
+       ========================================================= -->
+  <joint name="${namespace}/camera_bottom_joint" type="fixed">
+    <origin xyz="0 0 0.03" rpy="0 0 0"/>
+    <parent link="${namespace}/base_link"/>
+    <child link="${namespace}/camera_bottom_link"/>
+  </joint>
+
+  <link name="${namespace}/camera_bottom_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder length="0.005" radius="0.01575" /></geometry>
+      <material name="red"><color rgba="0.792 0.820 0.933 1"/></material>
+    </visual>
+    <collision><origin xyz="0 0 0" rpy="0 0 0"/><geometry><cylinder length="0.005" radius="0.01575" /></geometry></collision>
+    <inertial>
+      <mass value="1e-5"/><origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+
+  <gazebo reference="${namespace}/camera_bottom_link">
+    <sensor type="camera" name="camera_bottom_sensor">
+      <update_rate>30.0</update_rate>
+      <camera name="camera_bottom">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <horizontal_fov>1.5708</horizontal_fov>
+        <image><width>640</width><height>480</height><format>R8G8B8</format></image>
+        <clip><near>0.02</near><far>100</far></clip>
+      </camera>
+      <plugin name="${namespace}_camera_bottom_controller" filename="libgazebo_ros_camera.so">
+        <alwaysOn>true</alwaysOn>
+        <updateRate>0.0</updateRate>
+        <cameraName>${namespace}/camera_bottom</cameraName>
+        <imageTopicName>camera_bottom/image_raw</imageTopicName>
+        <cameraInfoTopicName>camera_bottom/camera_info</cameraInfoTopicName>
+        <frameName>${namespace}/camera_bottom_link</frameName>
+        <hackBaseline>0.0</hackBaseline>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <!-- 双目相机、IMU、压力传感器（使用内联宏实例） -->
+  <uuv:default_stereo_camera namespace="${namespace}"/>
+  <uuv:default_imu namespace="${namespace}"/>
+  <uuv:default_pressure namespace="${namespace}" parent_link="${namespace}/base_link">
+    <origin xyz="-0.030 -0.030 0.172" rpy="0 0 0"/>
+  </uuv:default_pressure>
+
+  <!-- =========================================================
+       (G) gazebo_ros_control（保持原配置）
+       ========================================================= -->
+  <gazebo>
+    <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+      <legacyModeNS>true</legacyModeNS>
+      <robotNamespace>/${namespace}</robotNamespace>
+      <robotSimType>gazebo_ros_control/DefaultRobotHWSim</robotSimType>
+    </plugin>
+  </gazebo>
+
+  <!-- =========================================================
+       (H) 传动（transmission）—— 完整保留 1~12
+       ========================================================= -->
+  <transmission name="tran1">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="H1"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface></joint>
+    <actuator name="motor1"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface><mechanicalReduction>1</mechanicalReduction></actuator>
+  </transmission>
+
+  <transmission name="tran2">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="M1"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface></joint>
+    <actuator name="motor2"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface><mechanicalReduction>1</mechanicalReduction></actuator>
+  </transmission>
+
+  <transmission name="tran3">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="V1"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface></joint>
+    <actuator name="motor3"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface><mechanicalReduction>1</mechanicalReduction></actuator>
+  </transmission>
+
+  <transmission name="tran4">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="H2"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface></joint>
+    <actuator name="motor4"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface><mechanicalReduction>1</mechanicalReduction></actuator>
+  </transmission>
+
+  <transmission name="tran5">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="M2"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface></joint>
+    <actuator name="motor5"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface><mechanicalReduction>1</mechanicalReduction></actuator>
+  </transmission>
+
+  <transmission name="tran6">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="V2"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface></joint>
+    <actuator name="motor6"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface><mechanicalReduction>1</mechanicalReduction></actuator>
+  </transmission>
+
+  <transmission name="tran7">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="H3"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface></joint>
+    <actuator name="motor7"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface><mechanicalReduction>1</mechanicalReduction></actuator>
+  </transmission>
+
+  <transmission name="tran8">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="M3"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface></joint>
+    <actuator name="motor8"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface><mechanicalReduction>1</mechanicalReduction></actuator>
+  </transmission>
+
+  <transmission name="tran9">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="V3"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface></joint>
+    <actuator name="motor9"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface><mechanicalReduction>1</mechanicalReduction></actuator>
+  </transmission>
+
+  <transmission name="tran10">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="H4"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface></joint>
+    <actuator name="motor10"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface><mechanicalReduction>1</mechanicalReduction></actuator>
+  </transmission>
+
+  <transmission name="tran11">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="M4"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface></joint>
+    <actuator name="motor11"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface><mechanicalReduction>1</mechanicalReduction></actuator>
+  </transmission>
+
+  <transmission name="tran12">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="V4"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface></joint>
+    <actuator name="motor12"><hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface><mechanicalReduction>1</mechanicalReduction></actuator>
+  </transmission>
+
+  <!-- =========================================================
+       (I) 水动力插件（完整保留 + 你的第二版参数）
+       ========================================================= -->
+  <!-- 你注释掉的旧版保留在这里： -->
+  <!--
+  <gazebo>
+    <plugin name="underwater_object_plugin" filename="libuuv_underwater_object_ros_plugin.so">
+      <fluid_density>1028</fluid_density>
+      <flow_velocity_topic>hydrodynamics/current_velocity</flow_velocity_topic>
+      <debug>0</debug>
+      <link name="${namespace}/base_link">
+        <neutrally_buoyant>0</neutrally_buoyant>
+        <volume>0.011</volume>
+        <box>
+          <width>0.62</width>
+          <length>0.63</length>
+          <height>0.32</height>
+        </box>
+        <center_of_buoyancy>0.0 0.0 0.18</center_of_buoyancy>
+        <hydrodynamic_model>
+          <type>fossen</type>
+          <added_mass>
+            3.375 0 0 0 0 0
+            0  3.375 0 0 0 0
+            0 0 3.375 0 0 0
+            0 0 0 0 0 0
+            0 0 0 0 0 0
+            0 0 0 0 0 0
+          </added_mass>
+          <linear_damping>-5 -5 -5 -0.0001 -0.0001 -0.0001</linear_damping>
+          <quadratic_damping>-0.471 -0.471 -0.499 -0.5 -0.5 -0.5</quadratic_damping>
+        </hydrodynamic_model>
+      </link>
+    </plugin>
+  </gazebo>
+  -->
+
+  <!-- 你实际使用的第二版（流体密度 1192、体积 0.005）： -->
+  <gazebo>
+    <plugin name="underwater_object_plugin" filename="libuuv_underwater_object_ros_plugin.so">
+      <fluid_density>1192</fluid_density>
+      <flow_velocity_topic>hydrodynamics/current_velocity</flow_velocity_topic>
+      <debug>0</debug>
+      <link name="${namespace}/base_link">
+        <neutrally_buoyant>0</neutrally_buoyant>
+        <volume>0.005</volume>
+        <box>
+          <width>0.62</width>
+          <length>0.63</length>
+          <height>0.32</height>
+        </box>
+        <center_of_buoyancy>0.0 0.0 0.18</center_of_buoyancy>
+        <hydrodynamic_model>
+          <type>fossen</type>
+          <added_mass>
+            3.375 0 0 0 0 0
+            0  3.375 0 0 0 0
+            0 0 3.375 0 0 0
+            0 0 0 0 0 0
+            0 0 0 0 0 0
+            0 0 0 0 0 0
+          </added_mass>
+          <linear_damping>-5 -5 -5 -0.0001 -0.0001 -0.0001</linear_damping>
+          <quadratic_damping>-0.471 -0.471 -0.499 -0.5 -0.5 -0.5</quadratic_damping>
+        </hydrodynamic_model>
+      </link>
+    </plugin>
+  </gazebo>
+
+  <!-- =========================================================
+       (J) 你原文件末尾的 IMU gazebo 块——已合并进 default_imu 宏
+           若你想保留此处，也可以取消注释，但务必注释掉宏内的同段，避免重复
+       ========================================================= -->
+  <!--
+  <gazebo reference="${namespace}/imu_link">
+    <gravity>true</gravity>
+    <sensor name="imu_sensor" type="imu">
+      <always_on>true</always_on>
+      <update_rate>100</update_rate>
+      <visualize>false</visualize>
+      <plugin name="imu_plugin" filename="libgazebo_ros_imu_sensor.so">
+        <topicName>${namespace}/imu</topicName>
+        <frameName>${namespace}/imu_link</frameName>
+        <updateRateHZ>100.0</updateRateHZ>
+        <gaussianNoise>0.0</gaussianNoise>
+        <xyzOffset>0 0 0</xyzOffset>
+        <rpyOffset>0 0 0</rpyOffset>
+        <initialOrientationAsReference>false</initialOrientationAsReference>
+      </plugin>
+    </sensor>
+  </gazebo>
+  -->
+
+</robot>

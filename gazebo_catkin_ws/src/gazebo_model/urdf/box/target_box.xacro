@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<robot name="target_box" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:property name="box_size" value="0.2" />
+  <!-- 质量 = fluid_density * volume = 1192 * 0.008 = 9.536 -->
+  <xacro:property name="box_mass" value="9.536" />
+
+  <link name="base_link">
+    <visual>
+      <geometry><box size="${box_size} ${box_size} ${box_size}"/></geometry>
+      <material name="Green"><color rgba="0.0 1.0 0.0 1.0"/></material>
+    </visual>
+    <collision>
+      <geometry><box size="${box_size} ${box_size} ${box_size}"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="${box_mass}"/>
+      <inertia ixx="${(box_mass / 12.0) * (box_size*box_size + box_size*box_size)}" ixy="0.0" ixz="0.0"
+               iyy="${(box_mass / 12.0) * (box_size*box_size + box_size*box_size)}" iyz="0.0"
+               izz="${(box_mass / 12.0) * (box_size*box_size + box_size*box_size)}"/>
+    </inertial>
+  </link>
+
+  <gazebo>
+    <plugin name="underwater_object_plugin_box" filename="libuuv_underwater_object_ros_plugin.so">
+      <fluid_density>1192</fluid_density>
+      
+      <link name="base_link">
+        <box>
+            <width>0.5</width>
+            <length>0.5</length>
+            <height>0.5</height>
+        </box>
+        
+        <volume>0.008</volume>
+        <center_of_buoyancy>0 0 0</center_of_buoyancy>
+        
+        <hydrodynamic_model>
+            <type>fossen</type>
+            <added_mass>
+              0 0 0 0 0 0
+              0 0 0 0 0 0
+              0 0 0 0 0 0
+              0 0 0 0 0 0
+              0 0 0 0 0 0
+              0 0 0 0 0 0
+            </added_mass>
+            <!-- 
+              这是修正后的部分！
+              我们为线性和二次阻尼都提供了 6 个系数。
+            -->
+            <linear_damping>0.5 0.5 0.5 0.1 0.1 0.1</linear_damping>
+            <quadratic_damping>1.0 1.0 1.0 0.5 0.5 0.5</quadratic_damping>
+        </hydrodynamic_model>
+      </link>
+    </plugin>
+  </gazebo>
+
+</robot>

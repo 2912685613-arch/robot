@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>asrobot</name>
+  <version>0.0.0</version>
+  <description>The asrobot package</description>
+
+  <maintainer email="liuyu@todo.todo">liuyu</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- 核心依赖：编译和运行都需要 -->
+  <depend>roscpp</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>image_transport</depend>
+  <depend>actionlib</depend>
+  <depend>actionlib_msgs</depend>
+
+  <!-- 消息生成专用依赖 -->
+  <!-- message_generation 只在编译本包时需要 -->
+  <build_depend>message_generation</build_depend>
+  <!-- message_runtime 在运行本包和其他依赖本包的包时需要 -->
+  <exec_depend>message_runtime</exec_depend>
+  <!-- 注意：ROS Melodic及以后，<depend>message_runtime</depend> 也可以，但这样写更清晰 -->
+
+</package>

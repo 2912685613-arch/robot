@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<launch>
+
+  <arg name="obs_name" />
+  <arg name="x"     default="0"/>
+  <arg name="y"     default="0"/>
+  <arg name="z"     default="0"/>
+
+  <group ns="$(arg obs_name)">
+
+        <param name="robot_description"
+              command="$(find xacro)/xacro --inorder '$(find gazebo_model)/urdf/obstacle.xacro'"/> 
+
+        <node name="urdf_spawner2" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+              args="-urdf -x $(arg x) -y $(arg y) -z $(arg z) -model $(arg obs_name) -param /$(arg obs_name)/robot_description"/>
+
+   </group>
+</launch>
+

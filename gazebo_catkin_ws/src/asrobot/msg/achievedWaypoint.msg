@@ -1,0 +1,4 @@
+uint8 self_id
+uint8 robot1_waypoint
+uint8 robot2_waypoint
+uint8 robot3_waypoint

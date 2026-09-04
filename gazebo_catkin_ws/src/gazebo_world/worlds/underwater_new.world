@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="default">
+
+    <!-- 包含光照和地面 -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- 关键部分 1：定义全局物理属性 -->
+    <physics type="ode">
+      <!-- 定义重力 -->
+      <gravity>0 0 -9.8</gravity>
+      <!-- 
+        在这里定义全局的流体密度！
+        现在整个世界都被物理引擎认为是水。
+      -->
+      <fluid_density>1000</fluid_density>
+    </physics>
+
+    <!-- 关键部分 2：加载世界插件 -->
+    <plugin name="gazebo_ros_link_attacher" filename="libgazebo_ros_link_attacher.so"/>
+
+  </world>
+</sdf>

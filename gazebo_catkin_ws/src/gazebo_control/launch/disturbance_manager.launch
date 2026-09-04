@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+<!-- cite the start__disturbance_manager-->
+<include file="$(find uuv_control_utils)/launch/start_disturbance_manager.launch">
+    <arg name="uuv_name" default="gazebo_robot1"/>
+    <arg name="use_file" value="true"/>
+    <arg name="disturbance_file" value="$(find gazebo_control)/config/disturbances.yaml"/>
+</include>
+
+</launch>
+

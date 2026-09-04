@@ -1,0 +1,32 @@
+打开我的世界：roslaunch gazebo_world gazebo_world.launch
+打开我的水下世界：roslaunch gazebo_world underwater_world.launch(marker)
+打开全景光源水下世界:roslaunch gazebo_world underwater_world_noshadow.launch
+打开水陆两栖世界:roslaunch gazebo_world water_land_world_noshadow.launch
+**************************************************************************
+导入机器人模型：roslaunch gazebo_model gazebo_model.launch namespace:=gazebo_robot1 color:=Orange x:=0 y:=0 z:=0
+导入八目机器人模型：roslaunch gazebo_model gazebo_eight1.launch mode:=land/water x:=0 y:=0 z:=0
+删除模型：rosservice call /gazebo/delete_model gazebo_robot1
+**************************************************************************
+机器人的执行器控制: roslaunch gazebo_control gazebo_control.launch mode:=land
+机器人的执行器控制: roslaunch gazebo_control gazebo_control.launch mode:=water
+添加扰动: roslaunch gazebo_control disturbance_manager.launch
+****************************************************************************
+控制主程序：roslaunch asrobot asrobot.launch
+gazebo 视频录制：rosrun image_view video_recorder image:=/gazebo_robot/camera/right/image_raw
+rosrun image_view video_recorder image:=/gazebo_robot1/camera/left/image_raw
+****************************************************************************
+查看节点信息：rostopic list
+查看服务信息: rosservice list
+查看关节关系: rosrun rqt_tf_tree rqt_tf_tree    
+仿真实验指令集在motion.cpp中
+****************************************************************************
+rostopic pub -1 /gazebo_robot1/joint2_position_controller/command std_msgs/Float64 "data: 1.0"
+!!!TIPS:请按顺序打开launch文件
+学习gazebo请参考gazebo官方教程,古月居博客和ROS机器人开发实践
+学习uuv_simulator插件使用请参考uuv_simulator官方教程
+
+***********************************************************************
+编译问题：
+1.cv库旧   catkin_make --cmake-args -DCMAKE_CXX_FLAGS=-DCV__ENABLE_C_API_CTORS
+2.osqp安装0.6.3，不能安最新
+3.迁移至20.04Noetic,需要保证model和world中每个关节和连杆都不重名

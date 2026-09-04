@@ -1,0 +1,26 @@
+<launch>
+  <!-- 生成两份 robot_description，各在自己的 namespace 下 -->
+  <param name="gazebo_robot1/robot_description"
+         command="$(find xacro)/xacro --inorder $(find gazebo_model)/urdf/robot/asv.xacro namespace:=gazebo_robot1 color:=Orange"/>
+
+  <param name="gazebo_robot2/robot_description"
+         command="$(find xacro)/xacro --inorder $(find gazebo_model)/urdf/robot/asv.xacro namespace:=gazebo_robot2 color:=Green"/>
+
+  <!-- 各自的 robot_state_publisher（放在各自的命名空间，自动读取同命名空间下的 robot_description） -->
+  <node pkg="robot_state_publisher" type="robot_state_publisher" name="rsp_a" ns="gazebo_robot1" output="screen">
+    <param name="publish_frequency" value="100.0"/>
+  </node>
+
+  <node pkg="robot_state_publisher" type="robot_state_publisher" name="rsp_b" ns="gazebo_robot2" output="screen">
+    <param name="publish_frequency" value="100.0"/>
+  </node>
+
+  <!-- 以不同的 model 名称与命名空间分别 spawn 两台 -->
+  <node pkg="gazebo_ros" type="spawn_model" name="spawn_gazebo_robot1"
+        args="-urdf -param gazebo_robot1/robot_description -model gazebo_robot1 -robot_namespace /gazebo_robot1 -x 0 -y 0 -z 0.00 -Y 0.0"
+        output="screen"/>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="spawn_gazebo_robot2"
+        args="-urdf -param gazebo_robot2/robot_description -model gazebo_robot2 -robot_namespace /gazebo_robot2 -x 1.0 -y 0 -z -0.23 -Y 0.0"
+        output="screen"/>
+</launch>

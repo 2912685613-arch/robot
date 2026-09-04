@@ -1,0 +1,20 @@
+<launch>
+    <!-- 将我们刚刚手动生成的、确认无误的 URDF 文件加载到参数服务器 -->
+    <param name="robot_description" command="cat $(env HOME)/final_robot.urdf" />
+
+    <!-- 启动一个带物理引擎和 GUI 的空 Gazebo 世界 -->
+    <!-- verbose:=true 会打印出详细的加载信息，非常重要！ -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="paused" value="false"/>
+        <arg name="use_sim_time" value="true"/>
+        <arg name="gui" value="true"/>
+        <arg name="headless" value="false"/>
+        <arg name="debug" value="false"/>
+        <arg name="verbose" value="true"/>
+    </include>
+
+    <!-- 在 Gazebo 中生成机器人模型 -->
+    <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model"
+          args="-param robot_description -urdf -model gazebo_robot1"
+          output="screen" />
+</launch>

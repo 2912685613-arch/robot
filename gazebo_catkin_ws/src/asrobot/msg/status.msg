@@ -1,0 +1,2 @@
+uint8 openservo
+uint8 openmotor

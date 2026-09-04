@@ -1,0 +1,154 @@
+<?xml version="1.0"?>
+<robot name="serial_chain_robots" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:include filename="$(find gazebo_model)/urdf/robot/single_robot_minimal.xacro" />
+
+  <link name="world" />
+
+  
+  <material name="red">
+  <color rgba="1 0 0 1"/>
+</material>
+<material name="green">
+  <color rgba="0 1 0 1"/>
+</material>
+
+  <!-- Vehicle's color (Orange, Red, RedBright)-->
+<xacro:property name="color" value="$(arg color)"/>
+
+  <xacro:spawn_robot_minimal namespace="robot_a" />
+  <xacro:spawn_robot_minimal namespace="robot_b" />
+
+
+  <!-- Import all Gazebo-customization elements -->
+  
+  <!-- 这个直接放在文件中最后 -->
+<!-- <xacro:include filename="$(find gazebo_model)/urdf/gazebo_interface.xacro" /> -->
+<xacro:include filename="$(find gazebo_model)/urdf/gazebo_property.xacro" /> 
+  <!-- Loading file with uuv sensors macros -->
+<xacro:include filename="$(find uuv_sensor_ros_plugins)/urdf/sensor_snippets.xacro"/>
+  <!--  the sensor modules include pressure sensor,add sensors that you want-->
+<xacro:include filename="$(find gazebo_model)/urdf/gazebo_sensors.xacro"/>
+  <!--  Loading file with the thruster setting-->
+<xacro:include filename="$(find gazebo_model)/urdf/gazebo_thruster.xacro"/>
+
+<!-- Thrusters mananger -->
+    <xacro:gazebo_thruster_macro namespace="robot_a" thruster_id="0" parent_link= "V1_link">
+    <origin xyz="0.0482854280918027 0.0233999999957737 0.020810331492412" rpy="1.5707963267949 0.268065374615461 1.72701466203991E-16" />
+    </xacro:gazebo_thruster_macro>
+
+    <xacro:gazebo_thruster_macro namespace="robot_a" thruster_id="1" parent_link= "V2_link">
+    <origin xyz="-0.0479627706530614 0.0233999999957736 -0.0215435627070956" rpy="-1.5707963267949 -0.252829410926519 3.14159265358979"/>
+    </xacro:gazebo_thruster_macro>
+
+    <xacro:gazebo_thruster_macro namespace="robot_a" thruster_id="2" parent_link= "V3_link">
+    <origin xyz="-0.047731918492312 0.0233999999957736 -0.0220503156411877" rpy="-1.5707963267949 -0.242238474233525 3.14159265358979" />
+    </xacro:gazebo_thruster_macro>
+
+    <xacro:gazebo_thruster_macro namespace="robot_a" thruster_id="3" parent_link= "V4_link">
+    <origin xyz="0.0478546657014151 0.0233999999957736 0.0217826406442958" rpy="1.5707963267949 0.247839140884787 1.71782302430407E-16"/>
+    </xacro:gazebo_thruster_macro>
+
+<gazebo reference="robot_a/camera_bottom_link">
+  <sensor type="camera" name="camera_bottom_sensor">
+    <update_rate>30.0</update_rate>
+    <camera name="camera_bottom">
+      <pose>0 0 0 0 1.5708 0</pose>
+      <horizontal_fov>1.5708</horizontal_fov>
+      <image>
+        <width>640</width>
+        <height>480</height>
+        <format>R8G8B8</format>
+      </image>
+      <clip>
+        <near>0.02</near>
+        <far>100</far>
+      </clip>
+    </camera>
+    <plugin name="camera_bottom_controller" filename="libgazebo_ros_camera.so">
+      <alwaysOn>true</alwaysOn>
+      <updateRate>0.0</updateRate>
+      <cameraName>robot_a/camera_bottom</cameraName>
+      <imageTopicName>camera_bottom/image_raw</imageTopicName>
+      <cameraInfoTopicName>camera_bottom/camera_info</cameraInfoTopicName>
+      <frameName>camera_bottom_link</frameName>
+      <hackBaseline>0.0</hackBaseline>
+    </plugin>
+  </sensor>
+</gazebo>
+
+
+
+ <!--camera-->
+  <xacro:default_stereo_camera namespace="robot_a">
+  </xacro:default_stereo_camera>
+ <!--IMU-->
+  <xacro:default_imu namespace="robot_a">
+  </xacro:default_imu>
+ <!-- Pressure-->
+  <xacro:default_pressure namespace="robot_a" parent_link="robot_a/base_link">
+    <origin xyz="-0.030 -0.030 0.172" rpy="0 0 0"/>
+  </xacro:default_pressure>
+ <!-- ros_control plugin -->
+  <gazebo>
+    <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+      <legacyModeNS>true</legacyModeNS>
+      <robotNamespace>/robot_a</robotNamespace>
+      <robotSimType>gazebo_ros_control/DefaultRobotHWSim</robotSimType>
+    </plugin>
+  </gazebo>
+
+  <!--Hydrodynamic parameter-->
+<gazebo>
+      <plugin name="underwater_object_plugin" filename="libuuv_underwater_object_ros_plugin.so">
+	<fluid_density>1192</fluid_density>
+        <flow_velocity_topic>hydrodynamics/current_velocity</flow_velocity_topic>
+        <debug>0</debug>
+        <link name="robot_a/base_link">
+            <neutrally_buoyant>0</neutrally_buoyant>
+            <volume>0.005</volume>
+	    <box>
+                <width>0.62</width>
+                <length>0.63</length>
+                <height>0.32</height>
+            </box>
+            <center_of_buoyancy>0.0 0.0 0.18</center_of_buoyancy>
+ 		<hydrodynamic_model>
+ 		<!--type>sphere</type>
+                <radius>0.2</radius-->
+		<type>fossen</type>
+                <added_mass>
+                     3.375 0 0 0 0 0
+                      0  3.375 0 0 0 0
+                      0 0 3.375 0 0 0
+                      0 0 0 0 0 0
+                      0 0 0 0 0 0
+                      0 0 0 0 0 0
+                </added_mass>
+                <linear_damping>
+                    -5 -5 -5 -0.0001 -0.0001 -0.0001
+                </linear_damping>
+                <quadratic_damping>
+                    -0.471 -0.471 -0.499 -0.5 -0.5 -0.5
+                </quadratic_damping>
+          </hydrodynamic_model>
+	</link>
+      </plugin>
+    </gazebo>
+
+  <joint name="world_to_robot_b_joint" type="fixed">
+    <parent link="world" />
+    <child link="robot_b/base_link" />
+    <origin rpy="0 0 0" xyz="0 0 0" />
+  </joint>
+
+  <!-- 
+    关键修复：使用新的、没有空格的连杆名 "Top_Shell_link"
+  -->
+  <joint name="B_to_A_base_connection_joint" type="fixed">
+    <parent link="robot_b/Top_Shell_link" />
+    <child link="robot_a/base_link" />
+    <origin rpy="-1.57 0 0" xyz="0 0.115 0" />
+  </joint>
+
+</robot>

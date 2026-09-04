@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- 设置Gazebo模型路径 - 指向所有本地模型目录 -->
+    <env name="GAZEBO_MODEL_PATH" value="$(find gazebo_world)/models:$(find gazebo_world)/model_for_world:$(find uuv_gazebo_worlds)/models:$(find uuv_gazebo_worlds)/Media/models:/usr/share/gazebo-11/models"/>
+
+    <!-- 禁用在线模型库，避免启动时卡住 -->
+    <env name="GAZEBO_MODEL_DATABASE_URI" value=""/>
+
+    <arg name="gui" default="true"/>
+    <arg name="paused" default="false"/>
+    <arg name="world_name" default="$(find gazebo_world)/worlds/underwater_3_18.world"/>
+
+    <!-- 启动Gazebo -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="world_name" value="$(arg world_name)"/>
+        <arg name="paused" value="$(arg paused)"/>
+        <arg name="use_sim_time" value="false"/>
+        <arg name="gui" value="$(arg gui)"/>
+        <arg name="headless" value="false"/>
+        <arg name="debug" value="false"/>
+        <arg name="verbose" value="false"/>
+    </include>
+
+    <!-- NED坐标系发布器 -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="world_ned_frame_publisher"
+          args="0 0 0 0 0 0 world world_ned"/>
+</launch>

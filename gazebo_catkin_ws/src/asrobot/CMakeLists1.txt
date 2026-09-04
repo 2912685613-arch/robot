@@ -1,0 +1,307 @@
+cmake_minimum_required(VERSION 2.8.3)
+project(asrobot)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+if(NOT WIN32)
+ADD_DEFINITIONS("-std=c++0x -O3")
+endif(NOT WIN32)
+
+set(OpenCV_DIR /usr/local/share/OpenCV4)#hcy
+find_package(OpenCV)
+find_package(catkin REQUIRED COMPONENTS  
+  message_generation 
+  roscpp 
+  std_msgs 
+  cv_bridge 
+  image_transport  
+  OpenCV 
+  genmsg 
+  sensor_msgs)
+find_package(cmake_modules REQUIRED)
+find_package(osqp REQUIRED)
+find_package(Eigen3 REQUIRED)#hcy
+set(aruco_INCLUDE_DIRS /usr/local/include/aruco)#hcy
+set(aruco_LIBS /usr/local/lib/libaruco.so)#hcy
+find_package(aruco REQUIRED)#hcy
+find_package(OpenCV REQUIRED)
+
+
+add_message_files(FILES
+  camera_data.msg
+  multirobot.msg
+  multi_robot8.msg
+  quadrotor2robot.msg
+  camera82robot.msg
+  stereo2_pub.msg
+  servo.msg
+  path_3d.msg
+  path_2d.msg
+  path_based_threeSpine.msg
+  mul_ref_trajectory.msg
+  mc.msg
+  pwm.msg
+  achievedWaypoint.msg
+  status.msg
+)
+
+add_service_files(
+   FILES
+ )
+
+
+generate_messages(DEPENDENCIES
+  std_msgs
+  sensor_msgs
+)
+
+catkin_package(
+  CATKIN_DEPENDS
+  roscpp
+  std_msgs
+  message_runtime
+  cv_bridge 
+  image_transport
+  sensor_msgs
+  )
+# include_directories( "/usr/include/eigen3" )
+set(qpOASES_INCLUDE_DIRS /usr/local/include/)
+set(qpOASES_DIRS /usr/local/lib/libqpOASES.a)
+set(Eigen3_INCLUDE_DIRS /usr/include/)
+
+
+include_directories(
+  include
+  ${catkin_INCLUDE_DIRS}
+  ${Eigen3_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
+  ${qpOASES_INCLUDE_DIRS}
+  ${aruco_INCLUDE_DIRS}  #hcy
+
+)
+
+
+set(cv_bridge_DIR /opt/ros/melodic/share/cv_bridge/cmake)
+set(image_transport /opt/ros/melodic/share/image_transport/cmake)
+
+link_directories(${OpenCV_LIBRARY_DIRS})
+
+add_executable(joint_control 
+src/gazebo_commu/joint_control.cpp
+)
+add_dependencies(joint_control ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(joint_control ${catkin_LIBRARIES})
+
+
+
+add_executable(motion 
+src/motion_control/motion.cpp 
+src/motion_control/f_single_robot_control.cpp
+src/motion_control/c_controller_group.cpp 
+src/motion_control/c_gaitcontrol.cpp 
+src/motion_control/c_legmodel.cpp 
+src/motion_control/c_sim_3d_ctrl.cpp 
+src/motion_control/c_vectoredthrustcontrol.cpp 
+src/decision_center/c_filter_group.cpp
+src/motion_control/generate_trajectory.cpp 
+src/motion_control/MPCController.cpp 
+src/motion_control/mpc_formation.cpp
+src/motion_control/OSQP_solver.cpp 
+src/motion_control/qpOASES_solver.cpp
+src/motion_control/c_save_data.cpp
+)
+add_dependencies(motion ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} )
+target_link_libraries(motion PRIVATE osqp::osqp ${catkin_LIBRARIES} ${qpOASES_DIRS} )
+
+
+
+add_executable(mancontrol 
+src/man_control/mancontrol.cpp
+)
+add_dependencies(mancontrol ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(mancontrol ${catkin_LIBRARIES})
+
+
+
+
+add_executable(decision 
+src/decision_center/decision.cpp 
+src/decision_center/f_multi_robot_plan.cpp
+src/decision_center/c_multi_agent_algorithm.cpp 
+src/decision_center/c_save_data.cpp    
+src/decision_center/c_filter_group.cpp 
+src/decision_center/c_docking.cpp#hcy
+)
+add_dependencies(decision asrobot_generate_messages_cpp)
+target_link_libraries(decision ${catkin_LIBRARIES})
+
+
+
+add_executable(aruco_det src/aruco_det/aruco_det.cpp)
+add_executable(aruco_posture src/aruco_det/aruco_posture.cpp)
+
+target_link_libraries(aruco_det
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+)
+
+target_link_libraries(aruco_posture
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+)
+
+find_package(yaml-cpp REQUIRED)
+
+target_link_libraries(aruco_det
+    yaml-cpp
+)
+
+
+
+#add_executable(decision_quadrotor src/decision_quadrotor/decision_quadrotor.cpp src/decision_center/f_multi_robot_plan.cpp
+#               src/decision_center/c_multi_agent_algorithm.cpp src/decision_center/c_save_data.cpp    
+#               src/decision_center/c_filter_group.cpp)
+#add_dependencies(decision_quadrotor ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+#target_link_libraries(decision_quadrotor ${catkin_LIBRARIES})
+
+
+#add_executable(decision_making1
+#  src/decision_making1/decision_making1.cpp src/decision_making1/f_handle_pos_msg.cpp src/decision_making1/apf.cpp src/decision_making1/#c_infoconcensus.cpp  src/decision_making1/virtuallinkagestructure.cpp  src/decision_making1/virtualstructure.cpp src/decision_making1/c_filtergroup.cpp
+#)
+#add_dependencies(decision_making1 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+#target_link_libraries(decision_making1
+#  ${catkin_LIBRARIES}
+#)
+
+###hcy:原无注释
+# add_executable(decision_making1 src/decision_making1/decision_making1.cpp src/decision_center/f_multi_robot_plan.cpp
+#                src/decision_center/c_multi_agent_algorithm.cpp src/decision_center/c_save_data.cpp    
+#                src/decision_center/c_filter_group.cpp)
+# add_dependencies(decision_making1 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(decision_making1
+#   ${catkin_LIBRARIES})
+
+add_executable(thruster_control_old src/gazebo_commu/thruster_control_old.cpp)
+target_link_libraries(thruster_control_old ${catkin_LIBRARIES})
+add_dependencies(thruster_control_old asrobot_gencpp)
+
+add_executable(thruster_control 
+src/gazebo_commu/thruster_control.cpp
+)
+target_link_libraries(thruster_control ${catkin_LIBRARIES})
+add_dependencies(thruster_control asrobot_gencpp)
+
+add_executable(thruster_control_eight src/gazebo_commu/thruster_control_eight.cpp)
+target_link_libraries(thruster_control_eight ${catkin_LIBRARIES})
+add_dependencies(thruster_control_eight asrobot_gencpp)
+
+
+# robot position for gazebo_eight_camera1
+# add_executable(stereo_vision1_pub
+#   src/vision_module_eight1/StereoVision1_pub.cpp src/vision_module_eight1/stereocamera.cpp  src/vision_module_eight1/kcftracker.cpp src/vision_module_eight1/fhog.cpp)
+# add_dependencies(stereo_vision1_pub ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(stereo_vision1_pub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+# add_executable(stereo_vision2_pub
+#   src/vision_module_eight1/StereoVision2_pub.cpp src/vision_module_eight1/stereocamera.cpp  src/vision_module_eight1/kcftracker.cpp src/vision_module_eight1/fhog.cpp)
+# add_dependencies(stereo_vision2_pub ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(stereo_vision2_pub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+# add_executable(stereo_vision3_pub
+#   src/vision_module_eight1/StereoVision3_pub.cpp src/vision_module_eight1/stereocamera.cpp  src/vision_module_eight1/kcftracker.cpp src/vision_module_eight1/fhog.cpp)
+# add_dependencies(stereo_vision3_pub ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(stereo_vision3_pub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+# add_executable(stereo_vision4_pub
+#   src/vision_module_eight1/StereoVision4_pub.cpp src/vision_module_eight1/stereocamera.cpp  src/vision_module_eight1/kcftracker.cpp src/vision_module_eight1/fhog.cpp)
+# add_dependencies(stereo_vision4_pub ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(stereo_vision4_pub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+# add_executable(stereoVision_pub_eight1
+#   src/vision_module_eight1/StereoVision_pub_eight.cpp src/vision_module_eight1/stereocamera.cpp  src/vision_module_eight1/kcftracker.cpp src/vision_module_eight1/fhog.cpp )
+# add_dependencies(stereoVision_pub_eight1 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} ${EIGEN3_DEFINITIONS})
+# target_link_libraries(stereoVision_pub_eight1 ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+# # robot position for gazebo_eight_camera2
+# add_executable(stereo_vision5_pub
+#   src/vision_module_eight2/StereoVision1_pub.cpp src/vision_module_eight2/stereocamera.cpp  src/vision_module_eight2/kcftracker.cpp src/vision_module_eight2/fhog.cpp)
+# add_dependencies(stereo_vision5_pub ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(stereo_vision5_pub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+# add_executable(stereo_vision6_pub
+#   src/vision_module_eight2/StereoVision2_pub.cpp src/vision_module_eight2/stereocamera.cpp  src/vision_module_eight2/kcftracker.cpp src/vision_module_eight2/fhog.cpp)
+# add_dependencies(stereo_vision6_pub ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(stereo_vision6_pub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+# add_executable(stereo_vision7_pub
+#   src/vision_module_eight2/StereoVision3_pub.cpp src/vision_module_eight2/stereocamera.cpp  src/vision_module_eight2/kcftracker.cpp src/vision_module_eight2/fhog.cpp)
+# add_dependencies(stereo_vision7_pub ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(stereo_vision7_pub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+# add_executable(stereo_vision8_pub
+#   src/vision_module_eight2/StereoVision4_pub.cpp src/vision_module_eight2/stereocamera.cpp  src/vision_module_eight2/kcftracker.cpp src/vision_module_eight2/fhog.cpp)
+# add_dependencies(stereo_vision8_pub ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(stereo_vision8_pub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+# add_executable(stereoVision_pub_eight2
+#   src/vision_module_eight2/StereoVision_pub_eight.cpp src/vision_module_eight2/stereocamera.cpp  src/vision_module_eight2/kcftracker.cpp src/vision_module_eight2/fhog.cpp )
+# add_dependencies(stereoVision_pub_eight2 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} ${EIGEN3_DEFINITIONS})
+# target_link_libraries(stereoVision_pub_eight2 ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+
+
+# add_executable(StereoVision_pub
+#  src/vision_module/StereoVision_pub.cpp 
+#  src/vision_module/stereocamera.cpp  
+#  src/vision_module/kcftracker.cpp 
+#  src/vision_module/fhog.cpp
+# )
+# add_dependencies(StereoVision_pub ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(StereoVision_pub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+#add_executable(StereoVision_pub_eight
+#  src/vision_module_eight/StereoVision_pub_eight.cpp src/vision_module_eight/stereocamera.cpp  src/vision_module_eight/kcftracker.cpp src/#vision_module_eight/fhog.cpp )
+#add_dependencies(StereoVision_pub_eight ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} ${EIGEN3_DEFINITIONS})
+#target_link_libraries(StereoVision_pub_eight ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+# add_executable(StereoVision_pub
+# src/vision_module_docking/c_filter_group.cpp
+# src/vision_module_docking/F_FourLedsSolvePnP.cpp
+# src/vision_module_docking/stereocamera.cpp
+# src/vision_module_docking/StereoVision_pub.cpp
+# )
+# add_dependencies(StereoVision_pub ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS}
+#  ${EIGEN3_DEFINITIONS})
+# target_link_libraries(StereoVision_pub
+#   ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${aruco_LIBS}
+# )
+
+
+add_executable(StereoVision_pub
+src/vision_module_tracking/c_filter_group.cpp
+src/vision_module_tracking/fhog.cpp
+src/vision_module_tracking/kcftracker.cpp
+src/vision_module_tracking/stereocamera.cpp
+src/vision_module_tracking/StereoVision_pub.cpp
+)
+add_dependencies(StereoVision_pub ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS}
+ ${EIGEN3_DEFINITIONS})
+target_link_libraries(StereoVision_pub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES}
+)
+
+#hcy:基于第三方库的KCF
+# add_executable(StereoVision_pub
+# src/vision_module_tracking/c_filter_group.cpp
+# # src/vision_module_tracking/fhog.cpp
+# # src/vision_module_tracking/kcftracker.cpp
+# src/vision_module_tracking/stereocamera.cpp
+# src/vision_module_tracking/StereoVision_pub.cpp
+# )
+# add_dependencies(StereoVision_pub ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS}
+#  ${EIGEN3_DEFINITIONS})
+# target_link_libraries(StereoVision_pub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES}
+# )
+
+
+
+
+
+

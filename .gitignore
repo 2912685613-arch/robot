@@ -1,0 +1,51 @@
+# ROS / Catkin workspace
+build/
+devel/
+install/
+log/
+logs/
+.catkin_workspace
+.catkin_tools/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+*.whl
+
+# C++
+*.o
+*.so
+*.a
+*.dylib
+*.out
+*.app
+*.dSYM/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Gazebo
+*.log
+*.pid
+
+# Backup files
+*.bak
+*.orig

@@ -1,0 +1,12 @@
+int8 sc_id
+float32 robot1_pos_x8
+float32 robot1_pos_y8
+float32 robot1_pos_z8
+
+float32 robot2_pos_x8
+float32 robot2_pos_y8
+float32 robot2_pos_z8
+
+float32 robot3_pos_x8
+float32 robot3_pos_y8
+float32 robot3_pos_z8

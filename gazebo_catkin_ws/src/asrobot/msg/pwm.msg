@@ -1,0 +1,15 @@
+uint8[] channel
+uint8[] type
+float32[] duty
+float32 force_x
+float32 force_y
+float32 force_z
+float32 torque_z
+float32 attitude_pitch
+float32 attitude_yaw
+float32 attitude_roll
+float32 rotor_speed1
+float32 rotor_speed2
+float32 rotor_speed3
+float32 rotor_speed4
+uint16[] time

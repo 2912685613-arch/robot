@@ -1,0 +1,1576 @@
+<?xml version="1.0" ?>
+<sdf version='1.6'>
+  <world name='empty_underwater'>
+  <physics type="ode" name="split_unthrottled1">//物理引擎
+      <real_time_update_rate>0.0</real_time_update_rate>
+      <ode>
+        <solver>
+          <thread_position_correction>0</thread_position_correction>
+          <island_threads>4</island_threads>
+        </solver>
+      </ode>
+    </physics>
+    
+    <scene>
+      <ambient>0.01 0.01 0.01 1</ambient>
+      <sky>
+        <clouds>
+          <speed>20</speed>
+        </clouds>
+      </sky>
+      <shadows>1</shadows>
+      <fog>
+        <color>0.1 0.2 0.3 1</color>
+        <type>linear</type>
+        <density>0.001</density>
+        <start>10</start>
+        <end>200</end>
+      </fog>
+      <background>0.7 0.7 0.7 1</background>
+    </scene>
+    <spherical_coordinates>
+      <latitude_deg>56.719</latitude_deg>
+      <longitude_deg>3.51562</longitude_deg>
+      <surface_model>EARTH_WGS84</surface_model>
+      <elevation>0</elevation>
+      <heading_deg>0</heading_deg>
+    </spherical_coordinates>
+    <model name='ocean_box'>
+      <static>1</static>
+      <link name='link'>
+        <visual name='ground'>
+          <cast_shadows>0</cast_shadows>
+          <pose frame=''>0 0 -3 0 -0 0</pose>
+          <geometry>
+            <box>
+              <size>2000 2000 0.1</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>file://Media/materials/scripts/sand.material</uri>
+              <name>UUVSimulator/SandAndStones</name>
+            </script>
+          </material>
+        </visual>
+        <collision name='ground'>
+          <pose frame=''>0 0 -3 0 -0 0</pose>
+          <geometry>
+            <box>
+              <size>2000 2000 0.1</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='surface'>
+          <cast_shadows>0</cast_shadows>
+          <pose frame=''>0 0 0 0 -0 0</pose>
+          <geometry>
+            <box>
+              <size>2000 2000 0.1</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>file://Media/materials/scripts/water.material</uri>
+              <name>UUVSimulator/StaticDeepWater</name>
+            </script>
+          </material>
+        </visual>
+        <visual name='north'>
+          <cast_shadows>0</cast_shadows>
+          <pose frame=''>1000 0 -50 0 -0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 2000 100</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>file://Media/materials/scripts/water.material</uri>
+              <name>UUVSimulator/SeaWall</name>
+            </script>
+          </material>
+        </visual>
+        <visual name='south'>
+          <cast_shadows>0</cast_shadows>
+          <pose frame=''>-1000 0 -50 0 -0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 2000 100</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>file://Media/materials/scripts/water.material</uri>
+              <name>UUVSimulator/SeaWall</name>
+            </script>
+          </material>
+        </visual>
+        <visual name='east'>
+          <cast_shadows>0</cast_shadows>
+          <pose frame=''>0 -1000 -50 0 -0 0</pose>
+          <geometry>
+            <box>
+              <size>2000 0.1 100</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>file://Media/materials/scripts/water.material</uri>
+              <name>UUVSimulator/SeaWall</name>
+            </script>
+          </material>
+        </visual>
+        <visual name='west'>
+          <cast_shadows>0</cast_shadows>
+          <pose frame=''>0 1000 -50 0 -0 0</pose>
+          <geometry>
+            <box>
+              <size>2000 0.1 100</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>file://Media/materials/scripts/water.material</uri>
+              <name>UUVSimulator/SeaWall</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>0 0 0 0 -0 0</pose>
+    </model>
+
+    <model name='marker_0'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 1.5708</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://Aruco/marker_0/materials/scripts</uri>
+              <uri>model://Aruco/marker_0/materials/textures</uri>
+              <name>marker_0/Diffuse0</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>-0.003991 -0.011992 0 0 -0 0</pose>
+    </model>
+    <!-- <model name='marker_1'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_1/materials/scripts</uri>
+              <uri>model://marker_1/materials/textures</uri>
+              <name>marker_1/Diffuse1</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>-0.011984 0.995242 0 0 -0 0</pose>
+    </model>
+    <model name='marker_2'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_2/materials/scripts</uri>
+              <uri>model://marker_2/materials/textures</uri>
+              <name>marker_2/Diffuse2</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>-0.00399 1.97849 0 0 -0 0</pose>
+    </model>
+    <model name='marker_3'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_3/materials/scripts</uri>
+              <uri>model://marker_3/materials/textures</uri>
+              <name>marker_3/Diffuse3</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>0.011997 2.97774 0 0 -0 0</pose>
+    </model>
+    <model name='marker_4'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_4/materials/scripts</uri>
+              <uri>model://marker_4/materials/textures</uri>
+              <name>marker_4/Diffuse4</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>0.99525 0.019984 0 0 -0 0</pose>
+    </model>
+    <model name='marker_5'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_5/materials/scripts</uri>
+              <uri>model://marker_5/materials/textures</uri>
+              <name>marker_5/Diffuse5</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>1.00324 1.04321 0 0 -0 0</pose>
+    </model>
+    <model name='marker_6'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_6/materials/scripts</uri>
+              <uri>model://marker_6/materials/textures</uri>
+              <name>marker_6/Diffuse6</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>0.963274 1.99448 0 0 -0 0</pose>
+    </model>
+    <model name='marker_7'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_7/materials/scripts</uri>
+              <uri>model://marker_7/materials/textures</uri>
+              <name>marker_7/Diffuse7</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>1.00324 2.97774 0 0 -0 0</pose>
+    </model>
+    <model name='marker_8'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_8/materials/scripts</uri>
+              <uri>model://marker_8/materials/textures</uri>
+              <name>marker_8/Diffuse8</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>1.96252 -0.011992 0 0 -0 0</pose>
+    </model>
+    <model name='marker_9'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_9/materials/scripts</uri>
+              <uri>model://marker_9/materials/textures</uri>
+              <name>marker_9/Diffuse9</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>1.96252 1.00324 0 0 -0 0</pose>
+    </model>
+    <model name='marker_10'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_10/materials/scripts</uri>
+              <uri>model://marker_10/materials/textures</uri>
+              <name>marker_10/Diffuse10</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>1.95452 1.97849 0 0 -0 0</pose>
+    </model>
+    <model name='marker_11'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_11/materials/scripts</uri>
+              <uri>model://marker_11/materials/textures</uri>
+              <name>marker_11/Diffuse11</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>1.99449 2.96175 0 0 -0 0</pose>
+    </model>
+    <model name='marker_12'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_12/materials/scripts</uri>
+              <uri>model://marker_12/materials/textures</uri>
+              <name>marker_12/Diffuse12</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>2.96689 0.012815 0 0 -0 0</pose>
+    </model>
+    <model name='marker_13'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_13/materials/scripts</uri>
+              <uri>model://marker_13/materials/textures</uri>
+              <name>marker_13/Diffuse13</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>2.99871 1.04733 0 0 -0 0</pose>
+    </model>
+    <model name='marker_14'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_14/materials/scripts</uri>
+              <uri>model://marker_14/materials/textures</uri>
+              <name>marker_14/Diffuse14</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>2.9987 2.00228 0 0 -0 0</pose>
+    </model>
+    <model name='marker_15'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_15/materials/scripts</uri>
+              <uri>model://marker_15/materials/textures</uri>
+              <name>marker_15/Diffuse15</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>3.03052 2.94926 0 0 -0 0</pose>
+    </model>
+    <model name='marker_16'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_16/materials/scripts</uri>
+              <uri>model://marker_16/materials/textures</uri>
+              <name>marker_16/Diffuse16</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>3.96957 2.9652 0 0 -0 0</pose>
+    </model>
+    <model name='marker_17'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_17/materials/scripts</uri>
+              <uri>model://marker_17/materials/textures</uri>
+              <name>marker_17/Diffuse17</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>3.92182 2.01025 0 0 -0 0</pose>
+    </model>
+    <model name='marker_18'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_18/materials/scripts</uri>
+              <uri>model://marker_18/materials/textures</uri>
+              <name>marker_18/Diffuse18</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>3.93776 1.03143 0 0 -0 0</pose>
+    </model>
+    <model name='marker_19'>
+      <link name='link'>
+        <pose frame=''>0 0 0.115 0 -0 0</pose>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.00058</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.00058</iyy>
+            <iyz>0</iyz>
+            <izz>0.00019</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <max_contacts>10</max_contacts>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>0.5 0.5 0.01</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <uri>model://marker_19/materials/scripts</uri>
+              <uri>model://marker_19/materials/textures</uri>
+              <name>marker_19/Diffuse19</name>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <kinematic>0</kinematic>
+        <gravity>1</gravity>
+      </link>
+      <pose frame=''>3.94572 -0.01105 0 0 -0 0</pose>
+    </model> -->
+    <plugin name='underwater_current_plugin' filename='libuuv_underwater_current_ros_plugin.so'>
+      <namespace>hydrodynamics</namespace>
+      <constant_current>
+        <topic>current_velocity</topic>
+        <velocity>
+          <mean>0</mean>
+          <min>0</min>
+          <max>0</max>
+          <mu>0.0</mu>
+          <noiseAmp>0.0</noiseAmp>
+        </velocity>
+        <horizontal_angle>
+          <mean>0</mean>
+          <min>-3.141592653589793238</min>
+          <max>3.141592653589793238</max>
+          <mu>0.0</mu>
+          <noiseAmp>0.0</noiseAmp>
+        </horizontal_angle>
+        <vertical_angle>
+          <mean>0</mean>
+          <min>-1.5707963267948966</min>
+          <max>1.5707963267948966</max>
+          <mu>0.0</mu>
+          <noiseAmp>0.0</noiseAmp>
+        </vertical_angle>
+      </constant_current>
+    </plugin>
+    <plugin name='sc_interface' filename='libuuv_sc_ros_interface_plugin.so'/>
+    <gravity>0 0 -9.8</gravity>
+    <magnetic_field>6e-06 2.3e-05 -4.2e-05</magnetic_field>
+    <atmosphere type='adiabatic'/>
+   
+
+    <light name='light_RB' type='point'>
+      <pose frame=''>-15 -15 20 0 -0 0</pose>
+      <diffuse>0.5 0.5 0.5 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>500</range>
+        <constant>0.5</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <cast_shadows>0</cast_shadows>
+      <direction>0 0 -1</direction>
+    </light>
+    <light name='light_LB' type='point'>
+      <pose frame=''>-15 15 20 0 -0 0</pose>
+      <diffuse>0.5 0.5 0.5 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>500</range>
+        <constant>0.5</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <cast_shadows>0</cast_shadows>
+      <direction>0 0 -1</direction>
+    </light>
+    <light name='light_RF' type='point'>
+      <pose frame=''>15 -15 20 0 -0 0</pose>
+      <diffuse>0.5 0.5 0.5 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>500</range>
+        <constant>0.5</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <cast_shadows>0</cast_shadows>
+      <direction>0 0 -1</direction>
+    </light>
+    <light name='light_LF' type='point'>
+      <pose frame=''>15 15 20 0 -0 0</pose>
+      <diffuse>0.5 0.5 0.5 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <attenuation>
+        <range>500</range>
+        <constant>0.5</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <cast_shadows>0</cast_shadows>
+      <direction>0 0 -1</direction>
+    </light>
+    <light name='sun' type='directional'>
+      <pose frame=''>0.0 0.0 1000 0 -0 0</pose>
+      <diffuse>0.5 0.5 0.5 1</diffuse>
+      <specular>0.1 0.1 0.1 1</specular>
+      <direction>0.1 0.1 -0.9</direction>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.5</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <cast_shadows>1</cast_shadows>
+    </light>
+    <state world_name='empty_underwater'>
+      <sim_time>420 79000000</sim_time>
+      <real_time>285 494336011</real_time>
+      <wall_time>1573725304 187866897</wall_time>
+      <iterations>284403</iterations>
+      <model name='marker_0'>
+        <pose frame=''>-0.004021 -0.012355 -1.56 5e-06 0 0.000331</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>-0.004021 -0.012356 -1.445 -0 -5e-06 1.57113</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>-0.000733 -0.036557 9.67626 2.75504 0.091855 -0.147431</acceleration>
+          <wrench>-0.000733 -0.036557 9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_0'>
+        <pose frame=''>-0.012347 0.995311 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>-0.012345 0.995311 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <!-- <model name='marker_10'>
+        <pose frame=''>1.95416 1.97856 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>1.95416 1.97856 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_11'>
+        <pose frame=''>1.99413 2.96182 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>1.99413 2.96182 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_12'>
+        <pose frame=''>2.96653 0.012884 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>2.96653 0.012884 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_13'>
+        <pose frame=''>2.99835 1.0474 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>2.99835 1.0474 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_14'>
+        <pose frame=''>2.99834 2.00235 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>2.99834 2.00235 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_15'>
+        <pose frame=''>3.03016 2.94933 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>3.03016 2.94933 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_16'>
+        <pose frame=''>3.96921 2.96527 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>3.96921 2.96527 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_17'>
+        <pose frame=''>3.92146 2.01032 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>3.92146 2.01032 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_18'>
+        <pose frame=''>3.9374 1.0315 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>3.9374 1.0315 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_19'>
+        <pose frame=''>3.94536 -0.010981 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>3.94536 -0.010981 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_2'>
+        <pose frame=''>-0.004353 1.97856 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>-0.004351 1.97856 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_3'>
+        <pose frame=''>0.011634 2.97781 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>0.011636 2.97781 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_4'>
+        <pose frame=''>0.994887 0.020053 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>0.994889 0.020053 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_5'>
+        <pose frame=''>1.00288 1.04328 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>1.00288 1.04328 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_6'>
+        <pose frame=''>0.962911 1.99455 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>0.962913 1.99455 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_7'>
+        <pose frame=''>1.00288 2.97781 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>1.00288 2.97781 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_8'>
+        <pose frame=''>1.96216 -0.011923 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>1.96216 -0.011923 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='marker_9'>
+        <pose frame=''>1.96216 1.00331 -1.56001 0 2.4e-05 0.000478</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>1.96216 1.00331 -1.44501 0 2.4e-05 0.000478</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0.036554 -0.001719 -9.67626 3.0546 0.386687 -2.92204</acceleration>
+          <wrench>0.036554 -0.001719 -9.67626 0 -0 0</wrench>
+        </link>
+      </model> -->
+      <model name='ocean_box'>
+        <pose frame=''>0 0 0 0 -0 0</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose frame=''>0 0 0 0 -0 0</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
+        </link>
+      </model>
+      <light name='sun'>
+        <pose frame=''>0 0 1000 0 -0 0</pose>
+      </light>
+      <light name='light_RB'>
+        <pose frame=''>-15 -15 20 0 -0 0</pose>
+      </light>
+      <light name='light_LB'>
+        <pose frame=''>-15 15 20 0 -0 0</pose>
+      </light>
+      <light name='light_RF'>
+        <pose frame=''>15 -15 20 0 -0 0</pose>
+      </light>
+      <light name='light_LF'>
+        <pose frame=''>15 15 20 0 -0 0</pose>
+      </light>
+    </state>
+    <gui fullscreen='0'>
+      <camera name='user_camera'>
+        <pose frame=''>22.204 -0.715622 91.7721 0 1.2738 -2.97484</pose>
+        <view_controller>orbit</view_controller>
+        <projection_type>perspective</projection_type>
+      </camera>
+    </gui>
+  </world>
+</sdf>

@@ -1,0 +1,7 @@
+<launch>
+  <!-- 启动 aruco_det 节点 -->
+  <node pkg="asrobot" type="aruco_det" launch-prefix="gnome-terminal -x" name="aruco_det" output="screen" />
+
+  <!-- 启动 aruco_posture 节点 -->
+  <node pkg="asrobot" type="aruco_posture" launch-prefix="gnome-terminal -x" name="aruco_posture" output="screen" />
+</launch>

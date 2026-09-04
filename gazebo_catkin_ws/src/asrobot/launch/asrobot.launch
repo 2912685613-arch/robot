@@ -1,0 +1,95 @@
+<?xml version="1.0"?>
+<launch>
+
+   <!-- robot and namespace xx -->
+  <arg name="namespace" default="gazebo_robot1"/>
+  <arg name="robot" default="robot1"/>
+
+    <!-- decision xx -->
+  <node pkg="asrobot" type="decision" name="decision_robot1" launch-prefix="gnome-terminal -x" output="screen">
+    <remap from="imu" to="$(arg namespace)/imu"/>
+    <remap from="mc_message" to="$(arg robot)/mc_message"/>
+    <remap from="pressure" to="$(arg namespace)/pressure"/>
+    <remap from="cameradata" to="$(arg robot)/cameradata"/>
+    <remap from="cmd_message" to="$(arg robot)/cmd_message"/>
+    <remap from="mul_ref_trajectory" to="$(arg robot)/mul_ref_trajectory"/>
+    <remap from="multi_RobotPosition" to="$(arg robot)/multi_RobotPosition"/>
+  </node>
+
+    <!-- joint_control xx -->
+<node pkg="asrobot" type="joint_control" name="joint_control1" output="screen">
+ <remap from="pwm_message" to="$(arg robot)/pwm_message"/>
+ <remap from="status_message" to="$(arg robot)/status_message"/>
+ <remap from="joint1_position_controller/command" to="$(arg namespace)/joint1_position_controller/command"/>
+ <remap from="joint2_position_controller/command" to="$(arg namespace)/joint2_position_controller/command"/>
+ <remap from="joint3_position_controller/command" to="$(arg namespace)/joint3_position_controller/command"/>
+ <remap from="joint4_position_controller/command" to="$(arg namespace)/joint4_position_controller/command"/>
+ <remap from="joint5_position_controller/command" to="$(arg namespace)/joint5_position_controller/command"/>
+ <remap from="joint6_position_controller/command" to="$(arg namespace)/joint6_position_controller/command"/>
+ <remap from="joint7_position_controller/command" to="$(arg namespace)/joint7_position_controller/command"/>
+ <remap from="joint8_position_controller/command" to="$(arg namespace)/joint8_position_controller/command"/>
+ <remap from="joint9_position_controller/command" to="$(arg namespace)/joint9_position_controller/command"/>
+<remap from="joint10_position_controller/command" to="$(arg namespace)/joint10_position_controller/command"/>
+<remap from="joint11_position_controller/command" to="$(arg namespace)/joint11_position_controller/command"/>
+<remap from="joint12_position_controller/command" to="$(arg namespace)/joint12_position_controller/command"/> 
+  </node>
+
+ <!--node pkg="asrobot" type="joint_control_trajectory" name="joint_control_trajectory" output="screen">
+ <remap from="pwm_message" to="$(arg robot)/pwm_message"/>
+ <remap from="status_message" to="$(arg robot)/status_message"/>
+ <remap from="leg_controller/command" to="$(arg namespace)/leg_controller/command"/>
+  </node-->
+
+     <!-- thruster_control xx -->
+<node pkg="asrobot" type="thruster_control" name="thruster_control1" output="screen">
+<remap from="pwm_message" to="$(arg robot)/pwm_message"/>
+<remap from="thrusters/0/input" to="$(arg namespace)/thrusters/0/input"/>
+<remap from="thrusters/1/input" to="$(arg namespace)/thrusters/1/input"/>
+<remap from="thrusters/2/input" to="$(arg namespace)/thrusters/2/input"/>
+<remap from="thrusters/3/input" to="$(arg namespace)/thrusters/3/input"/>
+
+<remap from="thrusters/0/get_thruster_state" to="$(arg namespace)/thrusters/0/get_thruster_state"/>
+<remap from="thrusters/1/get_thruster_state" to="$(arg namespace)/thrusters/1/get_thruster_state"/>
+<remap from="thrusters/2/get_thruster_state" to="$(arg namespace)/thrusters/2/get_thruster_state"/>
+<remap from="thrusters/3/get_thruster_state" to="$(arg namespace)/thrusters/3/get_thruster_state"/>
+
+<remap from="thrusters/0/set_thruster_state" to="$(arg namespace)/thrusters/0/set_thruster_state"/>
+<remap from="thrusters/1/set_thruster_state" to="$(arg namespace)/thrusters/1/set_thruster_state"/>
+<remap from="thrusters/2/set_thruster_state" to="$(arg namespace)/thrusters/2/set_thruster_state"/>
+<remap from="thrusters/3/set_thruster_state" to="$(arg namespace)/thrusters/3/set_thruster_state"/>
+</node>
+
+<!--<node pkg="asrobot" type="thruster_control_old" name="thruster_control2" output="screen">
+<remap from="pwm_message" to="$(arg robot)/pwm_message"/>
+</node>-->
+
+  <group ns="$(arg robot)">
+    <node pkg="asrobot" type="motion" name="motion" output="screen"/>
+<!-- hcy -->
+    <node pkg="asrobot" type="mancontrol" name="mancontrol1" launch-prefix="gnome-terminal -x" output="screen"/>
+
+<!-- hcy -->
+<!-- gnome-terminal -x    xterm -e -->
+
+  </group>
+
+  <!-- <node pkg="asrobot" type="StereoVision_pub" name="StereoVision_pub1" launch-prefix="gnome-terminal -x" output="screen">
+    <remap from="camera/left/image_raw" to="$(arg namespace)/camera/left/image_raw"/>
+    <remap from="camera/right/image_raw" to="$(arg namespace)/camera/right/image_raw"/>
+    <remap from="cameradata" to="$(arg robot)/cameradata"/> 
+    <remap from="cmd_message" to="$(arg robot)/cmd_message"/>
+  </node>  -->
+
+  <!-- <node pkg="asrobot" type="StereoVision_pub" name="StereoVision_pub1" output="screen">
+    <remap from="camera/left/image_raw" to="$(arg namespace)/camera/left/image_raw"/>
+    <remap from="camera/right/image_raw" to="$(arg namespace)/camera/right/image_raw"/>
+    <remap from="cameradata" to="$(arg robot)/cameradata"/> 
+    <remap from="cmd_message" to="$(arg robot)/cmd_message"/>
+  </node>  -->
+
+
+  <!-- aruco_det -->
+  <node pkg="asrobot" type="aruco_det"  launch-prefix="gnome-terminal -x"   name="aruco_det" output="screen" />
+  <node pkg="asrobot" type="aruco_posture"  launch-prefix="gnome-terminal -x"   name="aruco_posture" output="screen" />
+
+</launch>

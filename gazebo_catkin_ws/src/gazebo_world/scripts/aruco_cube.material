@@ -1,0 +1,26 @@
+material ArucoCube/Marker
+{
+  technique
+  {
+    pass
+    {
+      ambient   1 1 1 1
+      diffuse   1 1 1 1
+      texture_unit
+      {
+        /home/jll/gazebo_catkin_ws/src/gazebo_world/models/aruco_cube/materials/textures/aruco_marker.png
+        # 只铺一次
+        scale       1 1
+        # 关掉双线性 & mipmap，保留像素精度
+        filtering   none
+        mip_filter  none
+      }
+    }
+  }
+}
+
+
+
+
+
+
