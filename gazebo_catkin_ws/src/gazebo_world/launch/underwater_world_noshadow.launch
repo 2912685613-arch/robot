@@ -1,5 +1,11 @@
 <?xml version="1.0"?>
 <launch>
+    <!-- 设置Gazebo模型路径 - 指向所有本地模型目录 -->
+    <env name="GAZEBO_MODEL_PATH" value="$(find gazebo_world)/models:$(find gazebo_world)/model_for_world:$(find uuv_gazebo_worlds)/models:$(find uuv_gazebo_worlds)/Media/models:/usr/share/gazebo-11/models"/>
+
+    <!-- 禁用在线模型库，避免启动时卡住 -->
+    <env name="GAZEBO_MODEL_DATABASE_URI" value=""/>
+
     <arg name="gui" default="true"/>
     <arg name="paused" default="false"/>
     <arg name="set_timeout" default="false"/>

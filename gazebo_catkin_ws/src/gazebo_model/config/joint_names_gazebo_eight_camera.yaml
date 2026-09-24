@@ -1,1 +1,1 @@
-controller_joint_names: ['H1', 'M1', 'V1', 'H2', 'M2', 'V2', 'H3', 'M3', 'V3', 'H4', 'M4', 'V4', ]
+controller_joint_names: ['H1_joint', 'M1_joint', 'V1_joint', 'H2_joint', 'M2_joint', 'V2_joint', 'H3_joint', 'M3_joint', 'V3_joint', 'H4_joint', 'M4_joint', 'V4_joint', ]

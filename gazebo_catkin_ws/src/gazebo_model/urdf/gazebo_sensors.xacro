@@ -45,7 +45,7 @@
       <geometry>
     <cylinder length="0.005" radius="0.01575" />
       </geometry>
-      <material name="red"/>
+      
     </visual>
     <inertial>
       <mass value="1e-5" />

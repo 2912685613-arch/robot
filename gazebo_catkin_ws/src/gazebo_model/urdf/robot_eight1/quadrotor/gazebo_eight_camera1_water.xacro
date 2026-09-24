@@ -11,7 +11,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
 <xacro:property name="namespace" value="$(arg namespace)"/>
 
  <!-- Import all Gazebo-customization elements -->
-<xacro:include filename="$(find gazebo_model)/urdf/gazebo_interface.xacro" />
+<xacro:include filename="$(find gazebo_model)/urdf/gazebo_interface_eight.xacro" />
 <xacro:include filename="$(find gazebo_model)/urdf/robot_eight1/gazebo_property_yellow.xacro" /> 
   <!-- Loading file with sensor macros -->
 <xacro:include filename="$(find uuv_sensor_ros_plugins)/urdf/sensor_snippets.xacro"/>
@@ -103,7 +103,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     </collision>
   </link>
   <joint
-    name="H1"
+    name="H1_joint"
     type="revolute">
     <origin
       xyz="0.0275771644662746 0.0275771644662779 0.0755999999999998"
@@ -161,7 +161,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     </collision>
   </link>
   <joint
-    name="M1"
+    name="M1_joint"
     type="revolute">
     <origin
       xyz="0.0884130861036115 -0.00979999999997312 -0.0501690784312739"
@@ -219,7 +219,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     </collision>
   </link>
   <joint
-    name="V1"
+    name="V1_joint"
     type="revolute">
     <origin
       xyz="0.0619963519322196 0 -0.00067256754037838"
@@ -277,7 +277,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     </collision>
   </link>
   <joint
-    name="H2"
+    name="H2_joint"
     type="revolute">
     <origin
       xyz="-0.0275771644662776 0.0275771644662748 0.0755999999999998"
@@ -335,7 +335,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     </collision>
   </link>
   <joint
-    name="M2"
+    name="M2_joint"
     type="revolute">
     <origin
       xyz="-0.0526549845715706 -0.00979999999999989 -0.0867057818128777"
@@ -393,7 +393,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     </collision>
   </link>
   <joint
-    name="V2"
+    name="V2_joint"
     type="revolute">
     <origin
       xyz="-0.0619414172722421 0 0.00269459204815273"
@@ -451,7 +451,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     </collision>
   </link>
   <joint
-    name="H3"
+    name="H3_joint"
     type="revolute">
     <origin
       xyz="-0.0275771644662747 -0.0275771644662777 0.0755999999999998"
@@ -509,7 +509,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     </collision>
   </link>
   <joint
-    name="M3"
+    name="M3_joint"
     type="revolute">
     <origin
       xyz="-0.0877695661334821 -0.00979999999999986 0.0508620021306432"
@@ -567,7 +567,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     </collision>
   </link>
   <joint
-    name="V3"
+    name="V3_joint"
     type="revolute">
     <origin
       xyz="-0.0619402727336578 0 0.00272077446324762"
@@ -625,7 +625,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     </collision>
   </link>
   <joint
-    name="H4"
+    name="H4_joint"
     type="revolute">
     <origin
       xyz="0.0275771644662778 -0.0275771644662746 0.0755999999999998"
@@ -683,7 +683,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     </collision>
   </link>
   <joint
-    name="M4"
+    name="M4_joint"
     type="revolute">
     <origin
       xyz="0.0506073428778608 -0.00979999999999973 0.0879166471544966"
@@ -741,7 +741,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     </collision>
   </link>
   <joint
-    name="V4"
+    name="V4_joint"
     type="revolute">
     <origin
       xyz="0.0619958390327929 0 -0.000718291459068376"
@@ -799,7 +799,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     </collision>
   </link>
   <joint
-    name="Battery"
+    name="Battery_joint"
     type="fixed">
     <origin
       xyz="0.000354366682360338 -0.000351152823442037 0.0620000000000002"
@@ -852,7 +852,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     </collision>
   </link>
   <joint
-    name="Top Shell"
+    name="Top Shell_joint"
     type="fixed">
     <origin
       xyz="0 0 0.1024"

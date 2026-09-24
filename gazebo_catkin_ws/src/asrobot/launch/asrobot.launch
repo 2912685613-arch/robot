@@ -89,7 +89,7 @@
 
 
   <!-- aruco_det -->
-  <node pkg="asrobot" type="aruco_det"  launch-prefix="gnome-terminal -x"   name="aruco_det" output="screen" />
-  <node pkg="asrobot" type="aruco_posture"  launch-prefix="gnome-terminal -x"   name="aruco_posture" output="screen" />
+  <node pkg="asrobot" type="aruco_det" name="aruco_det" output="screen" />
+  <node pkg="asrobot" type="aruco_posture" name="aruco_posture" output="screen" />
 
 </launch>

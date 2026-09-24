@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<!--
+  在 Gazebo 中观察机器人模型（对应 view_robot.launch 的 Gazebo 版本）
+
+  load_world 参数：
+    true  -> 顺带启动本项目的水下世界（gazebo_world/underwater_world_noshadow.launch）
+    false -> 默认值，不加载任何世界，只把模型 spawn 进「已经在运行的 Gazebo」
+
+  用法：
+    1) 默认：只加载模型（需先在另一个终端启动 Gazebo，例如
+       roslaunch gazebo_world underwater_world_noshadow.launch
+       或 roslaunch gazebo_ros empty_world.launch）
+       roslaunch gazebo_model view_robot_gazebo.launch
+
+    2) 一步到位：连世界一起加载
+       roslaunch gazebo_model view_robot_gazebo.launch load_world:=true
+
+    3) 切换陆上/水下模型并指定初始位姿
+       roslaunch gazebo_model view_robot_gazebo.launch mode:=land namespace:=robot2 x:=0 y:=2 z:=0
+-->
+<launch>
+  <!-- 是否加载世界：true/1/yes/y/on 视为加载；
+       其余任意取值（含默认 false）都视为不加载，不会因拼写问题直接报错 -->
+  <arg name="load_world" default="true"/>
+  <arg name="paused" default="false"/>
+
+  <!-- 与 view_robot.launch 保持一致的模型来源与命名空间 -->
+  <arg name="namespace" default="robot1"/>
+  <arg name="mode" default="water"/>
+  <arg name="debug" default="0"/>
+
+  <!-- 初始位姿 -->
+  <arg name="x"     default="0"/>
+  <arg name="y"     default="0"/>
+  <arg name="z"     default="0"/>
+  <arg name="roll"  default="0"/>
+  <arg name="pitch" default="0"/>
+  <arg name="yaw"   default="0"/>
+
+  <!-- 1. 可选：启动 Gazebo 世界（本项目的水下世界，含 GAZEBO_MODEL_PATH 等环境设置）
+           load_world 非真值时本段整体被跳过，不会启动 gazebo/gazebo_gui -->
+  <group if="$(eval str(arg('load_world')).strip().lower() in ('true', '1', 'yes', 'y', 'on'))">
+    <include file="$(find gazebo_world)/launch/underwater_world_noshadow.launch">
+      <arg name="paused" value="$(arg paused)"/>
+    </include>
+  </group>
+
+  <!-- 2. 载入模型描述：与 view_robot.launch 使用同一个 xacro -->
+  <param name="robot_description"
+         command="$(find xacro)/xacro --inorder '$(find gazebo_model)/urdf/robot_eight2/gazebo_eight_camera2_$(arg mode).xacro'
+                  debug:=$(arg debug)
+                  namespace:=$(arg namespace)"/>
+
+  <!-- 3. 通过 gazebo_ros 的 spawn_model 把模型生成到 Gazebo 中
+          注意：load_world:=false 时必须已有 Gazebo 在运行，
+          否则 spawn_model 会一直等待 /gazebo/spawn_urdf_model 服务而挂起 -->
+  <node name="view_robot_spawner" pkg="gazebo_ros" type="spawn_model"
+        respawn="false" output="screen"
+        args="-urdf -x $(arg x) -y $(arg y) -z $(arg z) -R $(arg roll) -P $(arg pitch) -Y $(arg yaw) -model $(arg namespace) -param robot_description"/>
+
+  <!-- 4. 发布 TF，便于同时用 RViz 查看坐标系 -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"
+        respawn="true" output="screen">
+    <param name="publish_frequency" value="5"/>
+  </node>
+</launch>

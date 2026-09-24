@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Robot namespace argument -->
+  <arg name="namespace" default="robot1"/>
+
+  <!-- Path to xacro file -->
+  <arg name="xacro_file" default="$(find gazebo_model)/urdf/robot_eight2/gazebo_eight_camera2_water.xacro"/>
+
+  <!-- Convert xacro to URDF and load to parameter server -->
+  <param name="robot_description"
+         command="$(find xacro)/xacro $(arg xacro_file) namespace:=$(arg namespace)"/>
+
+  <!-- Start robot state publisher -->
+  <node name="robot_state_publisher"
+        pkg="robot_state_publisher"
+        type="robot_state_publisher"/>
+
+
+  <!-- Start joint state publisher with GUI -->
+  <node name="joint_state_publisher_gui"
+        pkg="joint_state_publisher_gui"
+        type="joint_state_publisher_gui">
+    <param name="use_gui" value="true"/>
+  </node>
+
+  <!-- Start RViz -->
+ <!-- Start RViz -->
+<node name="rviz"
+      pkg="rviz"
+      type="rviz"
+      args="-d $(find gazebo_model)/rviz/view_robot.rviz"
+      required="false">
+  <!-- WSLg/D3D12 下使用软件 OpenGL 渲染 -->
+  <env name="LIBGL_ALWAYS_SOFTWARE" value="1"/>
+</node>
+
+</launch>

@@ -15,7 +15,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
 
  <!-- Import all Gazebo-customization elements -->
 <xacro:include filename="$(find gazebo_model)/urdf/gazebo_interface.xacro" />
-<xacro:include filename="$(find gazebo_model)/urdf/gazebo_property.xacro" /> 
+<xacro:include filename="$(find gazebo_model)/urdf/gazebo_property_namespaced.xacro" /> 
   <!-- Loading file with uuv sensors macros -->
 <xacro:include filename="$(find uuv_sensor_ros_plugins)/urdf/sensor_snippets.xacro"/>
   <!--  the sensor modules include pressure sensor,add sensors that you want-->
@@ -76,7 +76,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
   </link>
   
   <link
-    name="Battery_link">
+    name="${namespace}/Battery_link">
     <inertial>
       <origin
         xyz="-0.000351497062103152 0.00239993267692041 0.0220017185925642"
@@ -124,12 +124,12 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     <parent
       link="${namespace}/base_link" />
     <child
-      link="Battery_link" />
+      link="${namespace}/Battery_link" />
     <axis
       xyz="0 0 0" />
   </joint>
   <link
-    name="Top Shell_link">
+    name="${namespace}/Top Shell_link">
     <inertial>
       <origin
         xyz="0.00511437536816834 0.102435251617468 -0.000268654809433278"
@@ -177,12 +177,12 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     <parent
       link="${namespace}/base_link" />
     <child
-      link="Top Shell_link" />
+      link="${namespace}/Top Shell_link" />
     <axis
       xyz="0 0 0" />
   </joint>
   <link
-    name="H1_link">
+    name="${namespace}/H1_link">
     <inertial>
       <origin
         xyz="0.0592750727916101 -0.00794368050094316 -0.0555211081140299"
@@ -230,7 +230,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     <parent
       link="${namespace}/base_link" />
     <child
-      link="H1_link" />
+      link="${namespace}/H1_link" />
     <axis
       xyz="0 -1 0" />
     <limit
@@ -240,7 +240,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       velocity="1" />
   </joint>
   <link
-    name="M1_link">
+    name="${namespace}/M1_link">
     <inertial>
       <origin
         xyz="0.0280960077137827 0.0185404891966207 -0.00242957948861526"
@@ -286,9 +286,9 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       xyz="0.0895134133104177 -0.00980000000000003 -0.0477261860776503"
       rpy="-1.5707963267949 0.751070327195058 -6.61984763855109E-17" />
     <parent
-      link="H1_link" />
+      link="${namespace}/H1_link" />
     <child
-      link="M1_link" />
+      link="${namespace}/M1_link" />
     <axis
       xyz="0 1 0" />
     <limit
@@ -298,7 +298,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       velocity="1" />
   </joint>
   <link
-    name="V1_link">
+    name="${namespace}/V1_link">
     <inertial>
       <origin
         xyz="0.0213406749085451 0.0238474683493839 0.0095445008008978"
@@ -344,9 +344,9 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       xyz="0.0618781615777637 0 -0.00388498645514862"
       rpy="1.67654496324973E-16 -1.56521850540976E-16 3.33066907387547E-16" />
     <parent
-      link="M1_link" />
+      link="${namespace}/M1_link" />
     <child
-      link="V1_link" />
+      link="${namespace}/V1_link" />
     <axis
       xyz="0 1 0" />
     <limit
@@ -356,7 +356,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       velocity="1" />
   </joint>
   <link
-    name="H2_link">
+    name="${namespace}/H2_link">
     <inertial>
       <origin
         xyz="-0.056988280972186 -0.00794368049023023 -0.057865909942735"
@@ -404,7 +404,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     <parent
       link="${namespace}/base_link" />
     <child
-      link="H2_link" />
+      link="${namespace}/H2_link" />
     <axis
       xyz="0 1 0" />
    <limit
@@ -414,7 +414,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       velocity="1" />
   </joint>
   <link
-    name="M2_link">
+    name="${namespace}/M2_link">
     <inertial>
       <origin
         xyz="-0.0281862973130523 0.018540489043943 0.000906172736551691"
@@ -460,9 +460,9 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       xyz="-0.0499531465792657 -0.00980000000000002 -0.0882899946020522"
       rpy="1.5707963267949 -0.794677615099 4.64849568869466E-16" />
     <parent
-      link="H2_link" />
+      link="${namespace}/H2_link" />
     <child
-      link="M2_link" />
+      link="${namespace}/M2_link" />
     <axis
       xyz="0 1 0" />
     <limit
@@ -472,7 +472,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       velocity="1" />
   </joint>
   <link
-    name="V2_link">
+    name="${namespace}/V2_link">
     <inertial>
       <origin
         xyz="-0.021192784026013 0.0238474684445859 -0.0098685262917111"
@@ -518,9 +518,9 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       xyz="-0.0619977174380092 0 0.000532007966764822"
       rpy="-5.62560898242795E-17 5.73099506607656E-17 0" />
     <parent
-      link="M2_link" />
+      link="${namespace}/M2_link" />
     <child
-      link="V2_link" />
+      link="${namespace}/V2_link" />
     <axis
       xyz="0 1 0" />
     <limit
@@ -530,7 +530,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       velocity="1" />     
   </joint>
   <link
-    name="H3_link">
+    name="${namespace}/H3_link">
     <inertial>
       <origin
         xyz="-0.0582901267732215 -0.0079436804601019 0.0565542996416611"
@@ -578,7 +578,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     <parent
       link="${namespace}/base_link" />
     <child
-      link="H3_link" />
+      link="${namespace}/H3_link" />
     <axis
       xyz="0 -1 0" />
     <limit
@@ -588,7 +588,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       velocity="1" />
   </joint>
   <link
-    name="M3_link">
+    name="${namespace}/M3_link">
     <inertial>
       <origin
         xyz="-0.0281907835574335 0.0185404890355505 0.000753808379119411"
@@ -634,9 +634,9 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       xyz="-0.0886607936409851 -0.00980000000000002 0.0492920244152197"
       rpy="1.5707963267949 0.76864636196062 5.44436816467481E-17" />
     <parent
-      link="H3_link" />
+      link="${namespace}/H3_link" />
     <child
-      link="M3_link" />
+      link="${namespace}/M3_link" />
     <axis
       xyz="0 1 0" />
     <limit
@@ -646,7 +646,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       velocity="1" />      
   </joint>
   <link
-    name="V3_link">
+    name="${namespace}/V3_link">
     <inertial>
       <origin
         xyz="-0.0210870804855072 0.0238474683954362 -0.010092420158056"
@@ -692,9 +692,9 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       xyz="-0.0619996873622797 0 0.000196893320854818"
       rpy="3.05324980954171E-16 2.95263107338931E-16 -2.22044604925031E-16" />
     <parent
-      link="M3_link" />
+      link="${namespace}/M3_link" />
     <child
-      link="V3_link" />
+      link="${namespace}/V3_link" />
     <axis
       xyz="0 1 0" />
     <limit
@@ -704,7 +704,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       velocity="1" />      
   </joint>
   <link
-    name="H4_link">
+    name="${namespace}/H4_link">
     <inertial>
       <origin
         xyz="0.057510876848031 -0.00712868048132134 0.0573465495469481"
@@ -752,7 +752,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     <parent
       link="${namespace}/base_link" />
     <child
-      link="H4_link" />
+      link="${namespace}/H4_link" />
     <axis
       xyz="0 1 0" />
     <limit
@@ -762,7 +762,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       velocity="1" />
   </joint>
   <link
-    name="M4_link">
+    name="${namespace}/M4_link">
     <inertial>
       <origin
         xyz="0.0281871447109394 0.0193554890343648 -0.000879419575001067"
@@ -808,9 +808,9 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       xyz="0.0501756177709296 -0.00898499999999944 0.0884093751041459"
       rpy="-1.5707963267949 -0.785605813021169 -5.30008130128675E-17" />
     <parent
-      link="H4_link" />
+      link="${namespace}/H4_link" />
     <child
-      link="M4_link" />
+      link="${namespace}/M4_link" />
     <axis
       xyz="0 1 0" />
     <limit
@@ -820,7 +820,7 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       velocity="1" />
   </joint>
   <link
-    name="V4_link">
+    name="${namespace}/V4_link">
     <inertial>
       <origin
         xyz="0.0211432737661687 0.0238474684812127 0.00997416073177607"
@@ -866,9 +866,9 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
       xyz="0.06199819446243 0.000815000000000891 -0.000473163183953462"
       rpy="-1.84322624602994E-16 -1.84399189550061E-16 3.33066907387547E-16" />
     <parent
-      link="M4_link" />
+      link="${namespace}/M4_link" />
     <child
-      link="V4_link" />
+      link="${namespace}/V4_link" />
     <axis
       xyz="0 1 0" />
      <limit
@@ -879,19 +879,19 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
   </joint>
 
  <!-- Thrusters mananger -->
-    <xacro:gazebo_thruster_macro namespace="${namespace}" thruster_id="0" parent_link= "V1_link">
+    <xacro:gazebo_thruster_macro namespace="${namespace}" thruster_id="0" parent_link= "${namespace}/V1_link">
     <origin xyz="0.0482854280918027 0.0233999999957737 0.020810331492412" rpy="1.5707963267949 0.268065374615461 1.72701466203991E-16" />
     </xacro:gazebo_thruster_macro>
 
-    <xacro:gazebo_thruster_macro namespace="${namespace}" thruster_id="1" parent_link= "V2_link">
+    <xacro:gazebo_thruster_macro namespace="${namespace}" thruster_id="1" parent_link= "${namespace}/V2_link">
     <origin xyz="-0.0479627706530614 0.0233999999957736 -0.0215435627070956" rpy="-1.5707963267949 -0.252829410926519 3.14159265358979"/>
     </xacro:gazebo_thruster_macro>
 
-    <xacro:gazebo_thruster_macro namespace="${namespace}" thruster_id="2" parent_link= "V3_link">
+    <xacro:gazebo_thruster_macro namespace="${namespace}" thruster_id="2" parent_link= "${namespace}/V3_link">
     <origin xyz="-0.047731918492312 0.0233999999957736 -0.0220503156411877" rpy="-1.5707963267949 -0.242238474233525 3.14159265358979" />
     </xacro:gazebo_thruster_macro>
 
-    <xacro:gazebo_thruster_macro namespace="${namespace}" thruster_id="3" parent_link= "V4_link">
+    <xacro:gazebo_thruster_macro namespace="${namespace}" thruster_id="3" parent_link= "${namespace}/V4_link">
     <origin xyz="0.0478546657014151 0.0233999999957736 0.0217826406442958" rpy="1.5707963267949 0.247839140884787 1.71782302430407E-16"/>
     </xacro:gazebo_thruster_macro>
 

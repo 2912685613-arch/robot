@@ -21,12 +21,12 @@ dbus-launch gnome-terminal --title="model3" -- bash -c "source ~/robot/gazebo_ca
 
 sleep 5s
 {
-dbus-launch gnome-terminal --title="control" -- bash -c "source ~/robot/gazebo_catkin_ws/devel/setup.bash && roslaunch gazebo_control gazebo_control.launch mode:=water namespace:=gazebo_eight_camera1;exec bash"
+dbus-launch gnome-terminal --title="control" -- bash -c "source ~/robot/gazebo_catkin_ws/devel/setup.bash && roslaunch gazebo_control gazebo_control.launch mode:=water namespace:=gazebo_eight_camera1 config:=$(rospack find gazebo_control)/config/gazebo_control_eight_water.yaml;exec bash"
 }&
 
 sleep 5s
 {
-dbus-launch gnome-terminal --title="control2" -- bash -c "source ~/robot/gazebo_catkin_ws/devel/setup.bash && roslaunch gazebo_control gazebo_control.launch mode:=water namespace:=gazebo_eight_camera2;exec bash"
+dbus-launch gnome-terminal --title="control2" -- bash -c "source ~/robot/gazebo_catkin_ws/devel/setup.bash && roslaunch gazebo_control gazebo_control.launch mode:=water namespace:=gazebo_eight_camera2 config:=$(rospack find gazebo_control)/config/gazebo_control_eight2_water.yaml;exec bash"
 
 }&
 

@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<!--
+  ============================================================================
+  watch_robot_tf.launch —— 仿真运行期间的“纯观测”可视化 launch
+  ============================================================================
+  用途：Gazebo 已经在跑（例如 five_robots.sh 起的 underwater_world + gazebo_eight2），
+        在另一个终端用 RViz 观察机器人的 TF 树是否齐全、状态是否同步。
+
+  为什么不直接用 view_robot.launch？
+    view_robot.launch 是一个“独立演示”用的 launch，它启动的三样东西会干扰运行中的仿真：
+      1) <param name="robot_description">  —— 没有命名空间，是全局参数 /robot_description，
+         会直接覆盖 gazebo_eight2.launch 正在用的 /robot_description
+         （仿真里的 robot_state_publisher82 读的就是它，一旦覆盖，TF 立刻错乱）。
+      2) robot_state_publisher  —— 节点名与仿真里的 robot_state_publisher82 不同，
+         但发布的 TF 帧完全相同（重复发布同一批帧）。
+      3) joint_state_publisher_gui —— 会往 /joint_states 里发布“假的”关节角，
+         与仿真里真实的关节状态互相冲突（真假两套数据打架，看不出同步与否）。
+    另外它的默认 namespace 是 robot1，帧名是 robot1/xxx，
+    而仿真里的帧是 gazebo_eight_camera2/xxx，Fixed Frame 也对不上，根本看不到仿真的机器人。
+
+  本 launch 的做法：
+    * 只启动 RViz 一个节点，不发布任何 TF / 关节状态 → 完全不干扰仿真；
+    * robot_description 载入到独立参数名 /watch_robot_description，绝不碰 /robot_description；
+    * RViz 配置的 Fixed Frame 为 world（由 uuv_assistants/message_to_tf 提供
+      world -> <namespace>/base_link，由 robot_state_publisher82 提供内部连杆 TF）。
+
+  用法：
+    roslaunch gazebo_model watch_robot_tf.launch
+    roslaunch gazebo_model watch_robot_tf.launch namespace:=gazebo_eight_camera2 mode:=water
+    roslaunch gazebo_model watch_robot_tf.launch namespace:=gazebo_robot1 mode:=land
+
+  重要：namespace / mode 必须与仿真里启用的机器人完全一致，
+        否则 URDF 里的连杆名与 TF 帧名对不上，RViz 里只会显示一片空白或报 “No transform”。
+        five_robots.sh 当前启用的是 model5: gazebo_eight2.launch mode:=water
+        即 namespace:=gazebo_eight_camera2, mode:=water（本 launch 默认值就是这个）。
+
+  不想开 RViz 时，用下面两条命令看 TF 树更快：
+    rosrun tf view_frames && evince frames.pdf
+    rosrun rqt_tf_tree rqt_tf_tree
+  ============================================================================
+-->
+<launch>
+  <!-- 与仿真中机器人保持一致 -->
+  <arg name="namespace" default="gazebo_eight_camera2"/>
+  <arg name="mode" default="water"/>
+  <arg name="debug" default="0"/>
+
+  <!-- 默认按 gazebo_eight2.launch 的八推进器模型推导，特殊模型可自行覆盖 -->
+  <arg name="xacro_file"
+       default="$(find gazebo_model)/urdf/robot_eight2/gazebo_eight_camera2_$(arg mode).xacro"/>
+  <arg name="rviz_config" default="$(find gazebo_model)/rviz/watch_robot.rviz"/>
+
+  <!-- 独立参数名：只用来看模型外观，不参与 TF 计算，也不会覆盖 /robot_description -->
+  <param name="/watch_robot_description"
+         command="$(find xacro)/xacro --inorder '$(arg xacro_file)'
+                  debug:=$(arg debug)
+                  namespace:=$(arg namespace)
+                  inertial_reference_frame:=world"/>
+
+  <!-- 只启动 RViz，不启动 robot_state_publisher / joint_state_publisher_gui -->
+  <node name="rviz_watch" pkg="rviz" type="rviz"
+        args="-d $(arg rviz_config)" output="screen" required="false">
+    <!-- WSLg/D3D12 下使用软件 OpenGL 渲染，避免 RViz 花屏/崩溃 -->
+    <env name="LIBGL_ALWAYS_SOFTWARE" value="1"/>
+  </node>
+</launch>

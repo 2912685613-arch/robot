@@ -3,9 +3,10 @@
 
   <arg name="namespace" default="gazebo_robot1"/>
   <arg name="mode" default="land"/>
+  <arg name="config" default="$(find gazebo_control)/config/gazebo_control_$(arg mode).yaml"/>
 
   <!-- Load joint controller configurations from YAML file to parameter server -->
-  <rosparam file="$(find gazebo_control)/config/gazebo_control_$(arg mode).yaml" command="load" ns="$(arg namespace)"/>
+  <rosparam file="$(arg config)" command="load" ns="$(arg namespace)"/>
 
   <!-- load the controllers -->
   <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"

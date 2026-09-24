@@ -38,7 +38,7 @@ VectoredThrustControl::Position Robot3_c_position;
 
 /******************************   基本变量   **********************************/
 // const int iMotionLoopRate = 5; // 控制输出5Hz
-const int iMotionLoopRate = 30; // 控制输出5Hz
+const int iMotionLoopRate = 30; // 控制输出Hz
 
 /******************************   数据存储  **********************************/
 float force_x = 0, force_y = 0, force_z = 0, force_yaw = 0;

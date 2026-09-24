@@ -82,7 +82,7 @@
       </conversion>
       </plugin>
   </gazebo>
-  <gazebo reference="thruster_${thruster_id}">
+  <gazebo reference="${namespace}/thruster_${thruster_id}">
       <selfCollide>false</selfCollide>
   </gazebo>
 </xacro:macro>

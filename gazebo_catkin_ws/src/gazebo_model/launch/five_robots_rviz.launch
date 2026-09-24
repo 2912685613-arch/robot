@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- RViz only: the simulation launch files already publish TF and joint states. -->
+  <arg name="rviz_config" default="$(find gazebo_model)/rviz/five_robots.rviz"/>
+
+  <node name="rviz_five_robots" pkg="rviz" type="rviz"
+        args="-d $(arg rviz_config)" output="screen" required="false">
+    <!-- Useful on WSLg/D3D12 systems. -->
+    <env name="LIBGL_ALWAYS_SOFTWARE" value="1"/>
+  </node>
+</launch>
