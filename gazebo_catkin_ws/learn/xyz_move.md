@@ -381,6 +381,41 @@ sub_depth = n.subscribe("mc_message", 100, mccallback);
 
 所以我们下一步要查清楚：`mc_message` 是谁发布的，以及它的当前位置数据从哪里来。
 
+**回答：**
+
+`mc_message` 由 `decision_center` 节点发布，源码在 `src/asrobot/src/decision_center/decision.cpp:970`：
+
+```cpp
+mc_pub = n.advertise<asrobot::mc>("mc_message", 10);
+```
+
+当前位置数据来自 Gazebo 仿真，`decision_center` 订阅了 `/gazebo/model_states` 话题（`decision.cpp:995`）：
+
+```cpp
+model_states_sub = n.subscribe("/gazebo/model_states", 10, modelStatesCallback);
+```
+
+在 `modelStatesCallback` 回调里，从消息的 `pose` 字段中提取机器人当前坐标：
+
+```cpp
+const geometry_msgs::Pose &pose = msg->pose[i];
+robot_pos(0, 0) = pose.position.x;
+robot_pos(1, 0) = pose.position.y;
+robot_pos(2, 0) = pose.position.z;
+```
+
+完整数据流：
+
+```
+Gazebo /gazebo/model_states
+  → modelStatesCallback 更新 robot_pos
+  → decision_center 计算期望控制量
+  → 发布 mc_message
+  → motion_control/motion.cpp 的 mccallback 接收
+  → 生成 pwm_message
+  → joint_control 执行关节插值
+```
+
 **下一个问题是：`decision` 节点如何从 Gazebo 获取 `gazebo_robot1` 的当前位姿，并封装成 `mc_message`？**
 
 ---
@@ -997,22 +1032,499 @@ __fz1 = __fz2 = __fz3 = __fz4 = _Z_force / 4;
 *_leg4_angle = atan2(__fz4, __fx4 + 0.0001);
 ```
 
-并将角度限制在允许范围内，避免推进器姿态变化过大。
+### 关键理解：这里计算的是**腿部角度**，不是推进器转速
 
-分配完成后，调用：
+**`atan2(__fz, __fx)` 计算的是每条腿（推进器支架）应该转动的角度。**
 
-```cpp
-yawLocomMode_X(...);
-
-thrusterforce2speed_X(
-    __force1,
-    __force2,
-    __force3,
-    __force4
-);
+**物理意义：**
+```
+腿部角度 = arctan(垂直力 / 水平力)
 ```
 
-**下一个问题是：四个推进器的力怎样转换成 ROS 消息中的转速，并最终送给 Gazebo？**
+这个角度决定了推进器喷射的**方向**，从而产生所需的合力矢量。
+
+**为什么加 0.0001？**
+```cpp
+__fx1 + 0.0001  // 避免除零错误（当水平力为0时）
+```
+
+**举例说明：**
+
+假设计算结果：
+```cpp
+__fx1 = 0.893 N（水平方向）
+__fz1 = 0.25 N（垂直方向）
+
+*_leg1_angle = atan2(0.25, 0.893) = 0.272 弧度 ≈ 15.6°
+```
+
+然后在 `c_vectoredthrustcontrol.cpp:1921-1924` 转为角度制：
+
+```cpp
+*_leg1_angle = *_leg1_angle * 57.3;  // 弧度转角度
+```
+
+这个 15.6° 就是腿1需要转动的角度，让推进器的喷射方向产生合适的水平和垂直分力。
+
+并将角度限制在允许范围内（-30° ~ 30°），避免推进器姿态变化过大。
+
+分配完成后，调用两个关键函数：
+
+```cpp
+yawLocomMode_X(__leg_angle1, __leg_angle2, __leg_angle3, __leg_angle4);
+
+thrusterforce2speed_X(__force1, __force2, __force3, __force4);
+```
+
+**下一个问题是：这两个函数分别做什么？它们如何控制机器人的 12 个关节？**
+
+---
+
+## 10.1 `yawLocomMode_X()` - 设置 4 条腿的角度（控制 12 个关节）
+
+这个函数负责**设置 4 条腿的姿态**，实际上会控制机器人的**全部 12 个关节**。
+
+**源码位置：** `src/asrobot/src/motion_control/c_vectoredthrustcontrol.cpp:1966-2012`
+
+```cpp
+void C_VectoredThrustControl::yawLocomMode_X(
+    float _leg1_angle, 
+    float _leg2_angle, 
+    float _leg3_angle, 
+    float _leg4_angle)
+{
+    // 限制角度范围在 -30° ~ 30°
+    if (_leg1_angle > 30) _leg1_angle = 30;
+    else if (_leg1_angle < -30) _leg1_angle = -30;
+    
+    if (_leg2_angle > 30) _leg2_angle = 30;
+    else if (_leg2_angle < -30) _leg2_angle = -30;
+    
+    if (_leg3_angle > 30) _leg3_angle = 30;
+    else if (_leg3_angle < -30) _leg3_angle = -30;
+    
+    if (_leg4_angle > 30) _leg4_angle = 30;
+    else if (_leg4_angle < -30) _leg4_angle = -30;
+
+    // 设置 4 条腿的角度 - 每条腿有 3 个关节（A, B, C）
+    Leg1.set_angle(0, 0, _leg1_angle, 500);
+    Leg2.set_angle(0, 0, _leg2_angle, 500);
+    Leg3.set_angle(0, 0, _leg3_angle, 500);
+    Leg4.set_angle(0, 0, _leg4_angle, 500);
+}
+```
+
+### 关键：每条腿有 3 个关节
+
+机器人有 **4 条腿**，每条腿有 **3 个关节**（A、B、C），总共 **4 × 3 = 12 个关节**。
+
+```cpp
+Leg1.set_angle(A, B, C, time)
+```
+
+参数含义：
+- `A`：腿的水平转动角度（0° 表示 X 型布局的基准方向）
+- `B`：腿的俯仰角度（0° 表示基准俯仰）
+- `C`：腿的推进器喷射角度（`_leg_angle`）
+- `time`：运动时间（500 毫秒）
+
+### `set_angle()` 内部实现
+
+**源码位置：** `src/asrobot/src/motion_control/c_legmodel.cpp:136-213`
+
+```cpp
+void leg::set_angle(float A, float B, float C, int time, uint8_t type)
+{
+    // 1. 将角度转换为位置坐标
+    float x, y, z;
+    polar_to_cartesian(A, B, C, x, y, z);
+    
+    // 2. 计算每个关节的 PWM 占空比
+    int A_duty = A0_duty + A * A_k;
+    int B_duty = B0_duty + B * B_k;
+    int C_duty = C0_duty + C * C_k;
+    
+    // 3. 将 3 个关节的命令添加到 PWM 消息中
+    pwm_msg.channel.push_back(servo_A);  // 关节 A 的通道号
+    pwm_msg.type.push_back(type);
+    pwm_msg.duty.push_back(A_duty);      // 关节 A 的目标角度
+    pwm_msg.time.push_back(time);        // 运动时间
+    
+    pwm_msg.channel.push_back(servo_B);  // 关节 B
+    pwm_msg.type.push_back(type);
+    pwm_msg.duty.push_back(B_duty);
+    pwm_msg.time.push_back(time);
+    
+    pwm_msg.channel.push_back(servo_C);  // 关节 C
+    pwm_msg.type.push_back(type);
+    pwm_msg.duty.push_back(C_duty);
+    pwm_msg.time.push_back(time);
+    
+    // 4. 发布到 /robot1/pwm_message
+    extern_pub_pwm->publish(pwm_msg);
+    
+    // 5. 清空消息以便下次使用
+    pwm_msg.channel.clear();
+    pwm_msg.type.clear();
+    pwm_msg.duty.clear();
+    pwm_msg.time.clear();
+    
+    // 6. 更新当前状态
+    A_now = A; B_now = B; C_now = C;
+    x_now = x; y_now = y; z_now = z;
+}
+```
+
+### 12 个关节的映射关系
+
+| 腿 | 关节编号 | 控制器话题 | Gazebo 关节名 | 作用 |
+|----|---------|-----------|--------------|------|
+| Leg1 | 0, 1, 2 | joint1/2/3_position_controller/command | H1/M1/V1_joint | 控制腿1的 A/B/C 姿态 |
+| Leg2 | 3, 4, 5 | joint4/5/6_position_controller/command | H2/M2/V2_joint | 控制腿2的 A/B/C 姿态 |
+| Leg3 | 6, 7, 8 | joint7/8/9_position_controller/command | H3/M3/V3_joint | 控制腿3的 A/B/C 姿态 |
+| Leg4 | 9, 10, 11 | joint10/11/12_position_controller/command | H4/M4/V4_joint | 控制腿4的 A/B/C 姿态 |
+
+### PWM 消息的接收和处理
+
+PWM 消息发布到 `/robot1/pwm_message` 后，由 `joint_control` 节点接收。
+
+**源码位置：** `src/asrobot/src/gazebo_commu/joint_control.cpp:141-201`
+
+```cpp
+void pwmcallback(const asrobot::pwm::ConstPtr& msg)
+{
+    int length = msg->channel.size();  // 12 个通道（4条腿 × 3个关节）
+    
+    for(int i=0; i<length; i++)
+    {
+        num = msg->channel[i];              // 0-11
+        new_angle[num] = msg->duty[i]/180*PI;  // 设置目标角度（转为弧度）
+        _run_time[num] = msg->time[i];      // 运动时间
+        
+        // 设置插值标志和方向
+        if(old_angle[num] != new_angle[num])
+        {
+            pwm_task_flag[num] = 1;  // 需要运动
+        }
+        
+        if(old_angle[num] < new_angle[num])
+        {
+            count_up_down[num] = 1;  // 增加方向
+        }
+        else if(old_angle[num] > new_angle[num])
+        {
+            count_up_down[num] = 2;  // 减小方向
+        }
+        
+        // 计算速度（每次循环的增量）
+        if(pwm_task_flag[num] == 1)
+        {
+            if(count_up_down[num] == 1)
+            {
+                count_speed[num] = (new_angle[num]-old_angle[num])/_run_time[num];
+            }
+            if(count_up_down[num] == 2)
+            {
+                count_speed[num] = (old_angle[num]-new_angle[num])/_run_time[num];
+            }
+        }
+    }
+}
+```
+
+然后在主循环中（1000 Hz 频率）逐步插值：
+
+```cpp
+while(ros::ok())
+{
+    for(int ii=0; ii<12; ii++)  // 遍历 12 个关节
+    {
+        if(pwm_task_flag[ii] == 1)
+        {
+            pwm_task(ii);  // 平滑插值并发布
+        }
+    }
+    
+    ros::spinOnce();
+    loop_rate.sleep();  // 1 ms
+}
+```
+
+`pwm_task()` 函数会：
+1. 逐步更新 `old_angle[num] += count_speed[num]`
+2. 发布到对应的 `joint*_position_controller/command` 话题
+3. Gazebo 中的 PID 控制器驱动关节运动
+
+### 完整控制流程
+
+```
+yawLocomMode_X(15.6°, 6.2°, 6.2°, 15.6°)
+    ↓
+Leg1.set_angle(0, 0, 15.6, 500)  → 发送关节 0, 1, 2 的命令
+Leg2.set_angle(0, 0, 6.2, 500)   → 发送关节 3, 4, 5 的命令
+Leg3.set_angle(0, 0, 6.2, 500)   → 发送关节 6, 7, 8 的命令
+Leg4.set_angle(0, 0, 15.6, 500)  → 发送关节 9, 10, 11 的命令
+    ↓
+发布 /robot1/pwm_message
+    {
+        channel: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        duty: [角度1, 角度2, ..., 角度12],
+        time: [500, 500, ..., 500]
+    }
+    ↓
+joint_control 接收并平滑插值
+    ↓
+发布到 12 个 joint*_position_controller/command 话题
+    ↓
+Gazebo ROS Control 驱动 12 个关节运动
+    ↓
+4 条腿调整姿态，推进器改变喷射方向
+```
+
+**下一个问题是：`thrusterforce2speed_X()` 如何将推进器的力转换成转速？**
+
+---
+
+## 10.2 `thrusterforce2speed_X()` - 推进器力转换为转速
+
+这个函数负责将 4 个推进器的**力**转换为**转速**，并同样通过 `/robot1/pwm_message` 发布。
+
+**源码位置：** `src/asrobot/src/motion_control/c_vectoredthrustcontrol.cpp:2024-2103`
+
+```cpp
+void C_VectoredThrustControl::thrusterforce2speed_X(
+    float _force1, 
+    float _force2, 
+    float _force3, 
+    float _force4)
+{
+    int __speed1, __speed2, __speed3, __speed4;
+    float __k_1, __b_1;
+    float __k_2, __b_2;
+    float __k_3, __b_3;
+    float __k_4, __b_4;
+    
+    // 1. 推力限幅（限制在允许范围内）
+    const float min_force = base_motor_force - bias_motor_force;  // 1.6 - 0.6 = 1.0 N
+    const float max_force = base_motor_force + bias_motor_force;  // 1.6 + 0.6 = 2.2 N
+    
+    if (_force1 < min_force) _force1 = min_force;
+    else if (_force1 > max_force) _force1 = max_force;
+    // ... 对 force2, force3, force4 同样处理
+    
+    // 2. 计算线性映射系数（力 → 转速）
+    // 力的范围：[1.0, 2.2] N
+    // 转速范围：[0, 100]
+    __k_1 = (x_shape_max_motor_speed1 - x_shape_min_motor_speed1) / (2 * bias_motor_force);
+    __b_1 = x_shape_min_motor_speed1 - __k_1 * (base_motor_force - bias_motor_force);
+    
+    // __k_1 = (100 - 0) / (2 * 0.6) = 83.33
+    // __b_1 = 0 - 83.33 * 1.0 = -83.33
+    
+    // 对每个推进器计算相同的系数
+    __k_2 = (x_shape_max_motor_speed2 - x_shape_min_motor_speed2) / (2 * bias_motor_force);
+    __b_2 = x_shape_min_motor_speed2 - __k_2 * (base_motor_force - bias_motor_force);
+    
+    __k_3 = (x_shape_max_motor_speed3 - x_shape_min_motor_speed3) / (2 * bias_motor_force);
+    __b_3 = x_shape_min_motor_speed3 - __k_3 * (base_motor_force - bias_motor_force);
+    
+    __k_4 = (x_shape_max_motor_speed4 - x_shape_min_motor_speed4) / (2 * bias_motor_force);
+    __b_4 = x_shape_min_motor_speed4 - __k_4 * (base_motor_force - bias_motor_force);
+    
+    // 3. 线性映射：速度 = k × 力 + b
+    __speed1 = __k_1 * _force1 + __b_1;
+    __speed2 = __k_2 * _force2 + __b_2;
+    __speed3 = __k_3 * _force3 + __b_3;
+    __speed4 = __k_4 * _force4 + __b_4;
+    
+    // 4. 转速限幅
+    if (__speed1 < x_shape_min_motor_speed1) __speed1 = x_shape_min_motor_speed1;
+    else if (__speed1 > x_shape_max_motor_speed1) __speed1 = x_shape_max_motor_speed1;
+    // ... 对 speed2, speed3, speed4 同样处理
+    
+    // 5. 写入 PWM 消息
+    pwm_msg.rotor_speed1 = __speed1;
+    pwm_msg.rotor_speed2 = __speed2;
+    pwm_msg.rotor_speed3 = __speed3;
+    pwm_msg.rotor_speed4 = __speed4;
+    
+    // 6. 发布到 /robot1/pwm_message
+    extern_pub_pwm->publish(pwm_msg);
+    
+    // 7. 调试输出
+    cout << "**************************推进器力转速度**************************" << endl;
+    printf("speed1:%d speed2:%d speed3:%d speed4:%d\n", __speed1, __speed2, __speed3, __speed4);
+}
+```
+
+### 线性映射公式
+
+```
+转速 = k × 力 + b
+
+其中：
+k = (最大转速 - 最小转速) / (最大力 - 最小力)
+  = (100 - 0) / (2.2 - 1.0)
+  = 83.33
+
+b = 最小转速 - k × 最小力
+  = 0 - 83.33 × 1.0
+  = -83.33
+```
+
+### 举例计算
+
+假设推进器 1 的力为 `1.5 N`：
+
+```
+speed1 = 83.33 × 1.5 - 83.33
+       = 125 - 83.33
+       = 41.67
+       → 限幅后约 42
+```
+
+假设推进器 2 的力为 `2.2 N`（最大力）：
+
+```
+speed2 = 83.33 × 2.2 - 83.33
+       = 183.33 - 83.33
+       = 100
+```
+
+### 推进器转速的接收和处理
+
+转速也是通过 `/robot1/pwm_message` 发布，但是由 `thruster_control` 节点接收。
+
+**源码位置：** `src/asrobot/src/gazebo_commu/thruster_control.cpp`
+
+```cpp
+void pwmcallback(const asrobot::pwm::ConstPtr& msg)
+{
+    rotor.data = msg->rotor_speed1;
+    Propeller1_pub.publish(rotor);  // → /gazebo_robot1/thrusters/0/input
+    
+    rotor.data = msg->rotor_speed2;
+    Propeller2_pub.publish(rotor);  // → /gazebo_robot1/thrusters/1/input
+    
+    rotor.data = msg->rotor_speed3;
+    Propeller3_pub.publish(rotor);  // → /gazebo_robot1/thrusters/2/input
+    
+    rotor.data = msg->rotor_speed4;
+    Propeller4_pub.publish(rotor);  // → /gazebo_robot1/thrusters/3/input
+}
+```
+
+最终，Gazebo 中的 UUV 推进器插件收到这 4 个转速输入，产生实际的推进力。
+
+### 关键区别总结
+
+| 项目 | 腿部角度控制 | 推进器转速控制 |
+|------|------------|--------------|
+| **函数** | `yawLocomMode_X()` | `thrusterforce2speed_X()` |
+| **计算内容** | 4 条腿的角度 | 4 个推进器的转速 |
+| **控制对象** | 12 个关节（4条腿×3个关节） | 4 个推进器电机 |
+| **作用** | 调整推力**方向** | 调整推力**大小** |
+| **PWM 消息字段** | `channel`, `duty`, `time` | `rotor_speed1-4` |
+| **接收节点** | `joint_control` | `thruster_control` |
+| **最终话题** | `joint*_position_controller/command` | `/gazebo_robot1/thrusters/*/input` |
+
+**下一个问题是：这两部分如何协同工作？**
+
+---
+
+## 10.3 腿部角度和推进器转速的协同控制
+
+在 `space3DControl()` 函数的最后部分（`c_vectoredthrustcontrol.cpp:2359-2364`）：
+
+```cpp
+case SHAPE_X:
+{
+    // 1. 计算力和角度
+    calcSprayForces_Shape_X_2(_X_force, _Y_force, _Z_force,
+                              &__force1, &__force2, &__force3, &__force4,
+                              &__leg_angle1, &__leg_angle2, &__leg_angle3, &__leg_angle4);
+    
+    // 2. 设置腿部角度（控制 12 个关节）
+    yawLocomMode_X(__leg_angle1, __leg_angle2, __leg_angle3, __leg_angle4);
+    
+    // 3. 设置推进器转速（控制 4 个推进器）
+    thrusterforce2speed_X(__force1, __force2, __force3, __force4);
+};
+break;
+```
+
+### 完整数据流
+
+```
+space3DControl(SHAPE_X, X力, Y力, Z力, Yaw力)
+    ↓
+calcSprayForces_Shape_X_2()
+    计算水平分力: fx1, fx2, fx3, fx4
+    计算垂直分力: fz1, fz2, fz3, fz4
+    ↓
+    计算腿部角度: atan2(fz, fx)
+        leg1_angle = 15.6°
+        leg2_angle = 6.2°
+        leg3_angle = 6.2°
+        leg4_angle = 15.6°
+    ↓
+    计算推进器合力: sqrt(fx² + fz²)
+        force1 = 0.928 N
+        force2 = 2.320 N
+        force3 = 2.320 N
+        force4 = 0.928 N
+    ↓
+┌─────────────────────────┬─────────────────────────┐
+│ yawLocomMode_X()        │ thrusterforce2speed_X() │
+│                         │                         │
+│ 设置 4 条腿的角度        │ 计算 4 个推进器的转速    │
+│ ↓                       │ ↓                       │
+│ Leg1.set_angle()        │ speed1 = 0 RPM          │
+│ Leg2.set_angle()        │ speed2 = 100 RPM        │
+│ Leg3.set_angle()        │ speed3 = 100 RPM        │
+│ Leg4.set_angle()        │ speed4 = 0 RPM          │
+│ ↓                       │ ↓                       │
+│ 控制关节 0-11           │ 控制推进器 0-3          │
+└─────────────────────────┴─────────────────────────┘
+    ↓                           ↓
+发布 /robot1/pwm_message
+    {
+        channel: [0,1,2,3,4,5,6,7,8,9,10,11],
+        duty: [角度值...],
+        time: [500,500,...],
+        rotor_speed1: 0,
+        rotor_speed2: 100,
+        rotor_speed3: 100,
+        rotor_speed4: 0
+    }
+    ↓
+    ├─→ joint_control 订阅
+    │   处理 channel/duty/time
+    │   ↓
+    │   发布到 12 个 joint*_position_controller/command
+    │   ↓
+    │   Gazebo ROS Control 驱动 12 个关节
+    │   ↓
+    │   腿部调整到指定角度（推力方向改变）
+    │
+    └─→ thruster_control 订阅
+        处理 rotor_speed1-4
+        ↓
+        发布到 4 个 /gazebo_robot1/thrusters/*/input
+        ↓
+        Gazebo 推进器插件产生推力
+        ↓
+        推进器以指定转速旋转（推力大小改变）
+```
+
+### 协同效果
+
+1. **腿部角度**（12个关节）→ 调整推进器的**喷射方向**
+2. **推进器转速**（4个电机）→ 调整推进器的**推力大小**
+
+两者结合，实现**矢量推进**：可以精确控制推力的方向和大小，从而实现三维空间的自由运动。
+
+**下一个问题是：推进器的力和转速怎样最终送给 Gazebo 仿真器？**
 
 ---
 

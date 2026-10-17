@@ -84,14 +84,9 @@
 │   │   └── visualservoing.h
 ├── launch
 │   ├── aruco_det.launch
-│   ├── asrobot22.launch
-│   ├── asrobot2_eight1.launch
-│   ├── asrobot2.launch
 │   ├── asrobot.launch
-│   ├── asrobot_quadrotor.launch
-│   ├── detection_eight2robot.launch
 │   ├── multi_comm.launch
-│   └── readme
+│   └── README.md
 ├── msg
 │   ├── achievedWaypoint.msg
 │   ├── camera82robot (another copy).msg

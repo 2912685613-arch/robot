@@ -58,7 +58,8 @@ target_link_libraries(joint_control ${catkin_LIBRARIES})
 
 add_executable(motion
   src/motion_control/motion.cpp src/motion_control/f_single_robot_control.cpp
-  src/motion_control/c_controller_group.cpp src/motion_control/c_gaitcontrol.cpp
+  src/motion_control/c_controller_group.cpp src/motion_control/c_fuzzy_pid.cpp
+  src/motion_control/c_gaitcontrol.cpp
   src/motion_control/c_legmodel.cpp src/motion_control/c_sim_3d_ctrl.cpp
   src/motion_control/c_vectoredthrustcontrol.cpp src/decision_center/c_filter_group.cpp
   src/motion_control/generate_trajectory.cpp src/motion_control/MPCController.cpp

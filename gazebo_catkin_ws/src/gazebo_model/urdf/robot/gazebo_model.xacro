@@ -948,9 +948,9 @@ xmlns:xacro="http://www.ros.org/wiki/xacro">
     <plugin name="camera_bottom_controller" filename="libgazebo_ros_camera.so">
       <alwaysOn>true</alwaysOn>
       <updateRate>0.0</updateRate>
-      <cameraName>${namespace}/camera_bottom</cameraName>
-      <imageTopicName>camera_bottom/image_raw</imageTopicName>
-      <cameraInfoTopicName>camera_bottom/camera_info</cameraInfoTopicName>
+      <cameraName>camera/camera_bottom</cameraName>
+      <imageTopicName>image_raw</imageTopicName>
+      <cameraInfoTopicName>camera_info</cameraInfoTopicName>
       <frameName>camera_bottom_link</frameName>
       <hackBaseline>0.0</hackBaseline>
     </plugin>

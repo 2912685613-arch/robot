@@ -71,6 +71,7 @@ void print_header(const std::string &title, bool is_state_change = false)
 
 // 全局变量，保存当前状态
 RobotMode g_current_state = RobotMode::IDLE;
+bool fuzzy_xyz_enabled = true;
 
 // ===================================================================================
 // 2. 逻辑处理函数 (从 mccallback 和 main 循环中拆分)
@@ -129,7 +130,9 @@ void handle_xyz_target()
                                  << "  [Actual] X: " << cur_p_x << ", Y: " << cur_p_y << ", Z: " << cur_p_z << "\n"
                                  << "  [Computed Target Yaw]: " << exp_yaw << ", [Actual Yaw]: " << cur_yaw);
 
+    combine3DPidCtrl.setFuzzyXYZEnabled(fuzzy_xyz_enabled);
     PidXYZControl_X(exp_p_x, exp_p_y, exp_p_z, cur_p_x, cur_p_y, cur_p_z, cur_yaw);
+    combine3DPidCtrl.setFuzzyXYZEnabled(false);
 }
 
 void handle_grasp_target()
@@ -287,6 +290,8 @@ void cmdcallback(const std_msgs::String::ConstPtr &msg)
     if (cmd.empty())
         return;
 
+    const RobotMode previous_state = g_current_state;
+
     // --- 状态切换命令 ---
     if (cmd[0] == "gait" && cmd.size() == 2)
     {
@@ -321,11 +326,21 @@ void cmdcallback(const std_msgs::String::ConstPtr &msg)
     }
     else if (cmd[0] == "xyz" && cmd.size() == 4)
     {
+        combine3DPidCtrl.resetFuzzyXYZ();
         g_current_state = RobotMode::MANUAL_XYZ_TARGET;
         exp_p_x = std::stod(cmd[1]);
         exp_p_y = std::stod(cmd[2]);
         exp_p_z = std::stod(cmd[3]);
         print_header("-> XYZ TARGET", true);
+    }
+    else if (cmd[0] == "fuzzyxyz" && cmd.size() == 2 && (cmd[1] == "on" || cmd[1] == "off"))
+    {
+        fuzzy_xyz_enabled = cmd[1] == "on";
+        combine3DPidCtrl.resetFuzzyXYZ();
+        combine3DPidCtrl.vec_ctrl.mcXPID.pidReset();
+        combine3DPidCtrl.vec_ctrl.mcYPID.pidReset();
+        combine3DPidCtrl.vec_ctrl.mcDepthPID.pidReset();
+        ROS_INFO("XYZ fuzzy PID %s", fuzzy_xyz_enabled ? "on" : "off");
     }
     else if (cmd[0] == "dock") // docking-aruco
     {                          // trackaruco
@@ -437,6 +452,9 @@ void cmdcallback(const std_msgs::String::ConstPtr &msg)
                  << " p=" << atof(cmd[1].c_str()) << " i=" << atof(cmd[2].c_str()) << " d=" << atof(cmd[3].c_str());
         }
     }
+
+    if (previous_state == RobotMode::MANUAL_XYZ_TARGET && g_current_state != previous_state)
+        combine3DPidCtrl.resetFuzzyXYZ();
 
     // ... 其他命令 ...
 }

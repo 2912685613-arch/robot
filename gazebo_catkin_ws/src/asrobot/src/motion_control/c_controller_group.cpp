@@ -196,9 +196,12 @@ namespace ControllerGroup {
     void PID::pidReset()
     {
         this->fError_i = 0.0f;
+        this->fError_d = 0.0f;
         this->fPreError = 0.0f;
+        this->fCurError = 0.0f;
         this->fLastError = 0.0f;
-        // ... 清除其他需要重置的状态变量 ...
+        this->fP = this->fI = this->fD = 0.0f;
+        this->fLastP = this->fLastI = this->fLastD = 0.0f;
     }
 
     void DualLoopPID::reset()

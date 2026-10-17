@@ -29,8 +29,8 @@ start_terminal() {
 
 # Keep separate terminals for compatibility with the existing workflow, but
 # pass the selected world explicitly and do not rely on the caller's cwd.
-start_terminal world "roslaunch gazebo_world gazebo_world.launch world_name:='$WORLD_NAME'"
+start_terminal world "roslaunch --disable-title gazebo_world gazebo_world.launch world_name:='$WORLD_NAME'"
 sleep 3
-start_terminal model "roslaunch gazebo_model gazebo_model.launch"
+start_terminal model "roslaunch --disable-title gazebo_model gazebo_model.launch"
 sleep 3
-start_terminal control "roslaunch gazebo_control gazebo_control.launch mode:=land"
+start_terminal control "roslaunch --disable-title gazebo_control gazebo_control.launch mode:=land"

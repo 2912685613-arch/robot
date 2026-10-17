@@ -5,8 +5,14 @@
 
 #include <stdio.h>
 #include <iostream>
+#include <cmath>
+#include <vector>
 
 #define PI     3.1415926
+
+// Identity by default, preserving the old model's command convention.
+std::vector<double> joint_command_scale(12, 1.0);
+std::vector<double> joint_command_offset_deg(12, 0.0);
 
 int num;
 int pwm_task_flag[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
@@ -49,23 +55,25 @@ void openmotor(uint8_t flag)
 /*****************control the servos based on ROS publisher-subcriber********************/
 void publish(int num)
 {
-
+    std_msgs::Float64 calibrated;
+    calibrated.data = joint_command_scale[num] * channel.data
+                    + joint_command_offset_deg[num] * PI / 180.0;
 
 switch (num)
 {
 
-case 0:servo1_pub.publish(channel);break;
-case 1:servo2_pub.publish(channel);break;
-case 2:servo3_pub.publish(channel);break;
-case 3:servo4_pub.publish(channel);break;
-case 4:servo5_pub.publish(channel);break;
-case 5:servo6_pub.publish(channel);break;
-case 6:servo7_pub.publish(channel);break;
-case 7:servo8_pub.publish(channel);break;
-case 8:servo9_pub.publish(channel);break;
-case 9:servo10_pub.publish(channel);break;
-case 10:servo11_pub.publish(channel);break;
-case 11:servo12_pub.publish(channel);break;
+case 0:servo1_pub.publish(calibrated);break;
+case 1:servo2_pub.publish(calibrated);break;
+case 2:servo3_pub.publish(calibrated);break;
+case 3:servo4_pub.publish(calibrated);break;
+case 4:servo5_pub.publish(calibrated);break;
+case 5:servo6_pub.publish(calibrated);break;
+case 6:servo7_pub.publish(calibrated);break;
+case 7:servo8_pub.publish(calibrated);break;
+case 8:servo9_pub.publish(calibrated);break;
+case 9:servo10_pub.publish(calibrated);break;
+case 10:servo11_pub.publish(calibrated);break;
+case 11:servo12_pub.publish(calibrated);break;
 
 }    
 
@@ -223,6 +231,23 @@ int main(int argc, char **argv)
     
     ros::init(argc, argv, "joint_control");
     ros::NodeHandle n;
+    ros::NodeHandle private_n("~");
+    private_n.getParam("joint_command_scale", joint_command_scale);
+    private_n.getParam("joint_command_offset_deg", joint_command_offset_deg);
+    if (joint_command_scale.size() != 12 || joint_command_offset_deg.size() != 12)
+    {
+        ROS_FATAL("Joint calibration must contain exactly 12 scales and offsets");
+        return 1;
+    }
+    for (int i = 0; i < 12; ++i)
+    {
+        if (!std::isfinite(joint_command_scale[i]) || joint_command_scale[i] == 0.0
+            || !std::isfinite(joint_command_offset_deg[i]))
+        {
+            ROS_FATAL("Invalid joint calibration at channel %d", i);
+            return 1;
+        }
+    }
     ros::Subscriber pwm_sub = n.subscribe("pwm_message", 1000, pwmcallback);
     ros::Subscriber status_sub = n.subscribe("status_message", 1000, statuscallback);
 

@@ -1635,7 +1635,7 @@ void kalmanfilter_estimation_2_1(MatrixXf &curRobotsPosEst_, MatrixXf &curRobots
 {
     Mat prediction_state;
 
-    ROS_INFO("Robot 1: cur_x=%f, cur_y=%f", curRobotsPosEst_(0, 0), curRobotsPosEst_(1, 0),
+    ROS_INFO("Robot 1: cur_x=%f, cur_y=%f, cur_z=%f", curRobotsPosEst_(0, 0), curRobotsPosEst_(1, 0),
              curRobotsPosEst_(2, 0));
     measurement_robot1.at<float>(0) = curRobotsPosEst_(0, 0);
     measurement_robot1.at<float>(1) = curRobotsPosEst_(1, 0);
@@ -1648,13 +1648,13 @@ void kalmanfilter_estimation_2_1(MatrixXf &curRobotsPosEst_, MatrixXf &curRobots
     curRobotsVelEst_(1, 0) = 20 * prediction_state.at<float>(4);
     curRobotsVelEst_(2, 0) = 20 * prediction_state.at<float>(5);
     _kf_robot1.correct(measurement_robot1);
-    ROS_INFO("kf Robot 1: cur_x=%f, cur_y=%f", curRobotsPosEst_(0, 0), curRobotsPosEst_(1, 0),
+    ROS_INFO("kf Robot 1: cur_x=%f, cur_y=%f, cur_z=%f", curRobotsPosEst_(0, 0), curRobotsPosEst_(1, 0),
              curRobotsPosEst_(2, 0));
-    ROS_INFO("kf Robot 1: vel_x=%f, vel_y=%f", curRobotsVelEst_(0, 0), curRobotsVelEst_(1, 0),
+    ROS_INFO("kf Robot 1: vel_x=%f, vel_y=%f, vel_z=%f", curRobotsVelEst_(0, 0), curRobotsVelEst_(1, 0),
              curRobotsVelEst_(2, 0));
 
-    ROS_INFO("Robot 3: cur_x=%f, cur_y=%f", curRobotsPosEst_(0, 2), curRobotsPosEst_(1, 2),
-             curRobotsPosEst_(2, 1));
+    ROS_INFO("Robot 3: cur_x=%f, cur_y=%f, cur_z=%f", curRobotsPosEst_(0, 2), curRobotsPosEst_(1, 2),
+             curRobotsPosEst_(2, 2));
     measurement_robot3.at<float>(0) = curRobotsPosEst_(0, 2);
     measurement_robot3.at<float>(1) = curRobotsPosEst_(1, 2);
     measurement_robot3.at<float>(2) = curRobotsPosEst_(2, 2);
@@ -1665,7 +1665,7 @@ void kalmanfilter_estimation_2_1(MatrixXf &curRobotsPosEst_, MatrixXf &curRobots
     curRobotsVelEst_(0, 2) = 20 * prediction_state.at<float>(3);
     curRobotsVelEst_(1, 2) = 20 * prediction_state.at<float>(4);
     curRobotsVelEst_(2, 2) = 20 * prediction_state.at<float>(5);
-    _kf_robot2.correct(measurement_robot2);
+    _kf_robot2.correct(measurement_robot3);
     ROS_INFO("kf Robot 3: cur_x=%f, cur_y=%f, cur_z=%f", curRobotsPosEst_(0, 2), curRobotsPosEst_(1, 2),
              curRobotsPosEst_(2, 2));
     ROS_INFO("kf Robot 3: vel_x=%f, vel_y=%f, vel_z=%f", curRobotsVelEst_(0, 2), curRobotsVelEst_(1, 2),

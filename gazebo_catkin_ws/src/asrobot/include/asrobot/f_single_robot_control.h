@@ -1,6 +1,5 @@
 #ifndef F_SINGLE_ROBOT_CONTROL_H
 #define F_SINGLE_ROBOT_CONTROL_H
-#define DURATION
 #define SINGLE_ROBOT 1 // 单机模式
 #define MULTI_ROBOT 2  // 编队模式
 

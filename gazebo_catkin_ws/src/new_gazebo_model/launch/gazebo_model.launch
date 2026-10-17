@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<launch>
+ <!-- Debug flag -->
+  <arg name="debug" default="0"/>
+
+  <!-- Vehicle's initial pose -->
+  <arg name="x"     default="0"/>
+  <arg name="y"     default="0"/>
+  <arg name="z"     default="0"/><!-- water depth 1.5 -->
+  <arg name="roll"  default="0"/>
+  <arg name="pitch" default="0"/>
+  <arg name="yaw"   default="0"/>
+
+  <!-- Vehicle's namespace and color -->
+  <arg name="namespace" default="gazebo_robot1"/>
+  <arg name="color" default="Orange"/>
+  <arg name="world_frame" default="world"/>
+
+
+    <param name="robot_description"
+           command="$(find xacro)/xacro --inorder '$(find new_gazebo_model)/urdf/robot/gazebo_model.xacro'
+          debug:=$(arg debug)
+          namespace:=$(arg namespace)
+	        color:=$(arg color)" />
+
+
+    
+
+    <!-- Run a python script to the send a service call to gazebo_ros to spawn a URDF robot -->
+    <node name="urdf_spawner1" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+          args="-urdf -x $(arg x) -y $(arg y) -z $(arg z) -R $(arg roll) -P $(arg pitch) -Y $(arg yaw) -model $(arg namespace) -param robot_description"/>
+
+  
+
+    
+
+    <!-- Publish robot joint state for ROS -->
+    <node name="$(arg namespace)_joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" >
+    </node>      
+
+
+    <!-- Publish robot model xx for ROS -->
+    <node name="$(arg namespace)_robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen">
+      <param name="robot_description" value="robot_description" />
+      <param name="publish_frequency" value="5" />
+    </node>
+
+
+  <!-- Publish state and tf for in relation to the world frame -->
+  <include file="$(find uuv_assistants)/launch/message_to_tf.launch">
+    	<arg name="namespace" value="$(arg namespace)"/>
+	<arg name="world_frame" value="world"/>
+	<arg name="child_frame_id" value="/$(arg namespace)/base_link"/>
+  </include>
+</launch>
+
+

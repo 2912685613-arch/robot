@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+<robot 
+name="$(arg namespace)"
+xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <!-- 此文件是最终模型的文件！ -->
+
+    <xacro:arg name="debug" default="0"/>
+    <!-- Vehicle's namespace -->
+    <xacro:property name="namespace" value="$(arg namespace)"/>
+    <!-- Vehicle's color (Orange, Red, RedBright)-->
+    <xacro:property name="color" value="$(arg color)"/>
+
+    <!-- 1 机器人的模型 -->
+    <xacro:include filename="$(find new_gazebo_model)/urdf/asrobot_model.xacro" />
+    <!-- 2 连接 ROS 控制器 ros_control 和 Gazebo 物理引擎 -->
+    <xacro:include filename="$(find new_gazebo_model)/urdf/gazebo_interface.xacro" />
+    <!-- 3 配置 Gazebo 仿真环境中的物理材质属性（表面特性 -->
+    <xacro:include filename="$(find new_gazebo_model)/urdf/gazebo_property.xacro" />
+    <!-- 5 颜色配置 -->
+    <xacro:include filename="$(find new_gazebo_model)/urdf/gazebo_materials.xacro"/>
+    <!-- 6 推进器动力学插件，使用到gazebo_thruster文件 -->
+    <!-- Thrusters mananger -->
+    <!--  先导入xacro  Loading file with the thruster setting-->
+    <xacro:include filename="$(find new_gazebo_model)/urdf/gazebo_thruster.xacro"/>
+    <xacro:gazebo_thruster_macro namespace="${namespace}" thruster_id="0"></xacro:gazebo_thruster_macro>
+    <xacro:gazebo_thruster_macro namespace="${namespace}" thruster_id="1"></xacro:gazebo_thruster_macro>
+    <xacro:gazebo_thruster_macro namespace="${namespace}" thruster_id="2"></xacro:gazebo_thruster_macro>
+    <xacro:gazebo_thruster_macro namespace="${namespace}" thruster_id="3"></xacro:gazebo_thruster_macro>
+
+    <!-- 7 导入UUV Simulator的插件包，提供传感器宏定义库，需要其他传感器去文件里面找  -->
+    <xacro:include filename="$(find uuv_sensor_ros_plugins)/urdf/sensor_snippets.xacro"/>
+    <!-- 8 自定义的传感器，有单目摄像头、双目摄像头、IMU -->
+    <xacro:include filename="$(find new_gazebo_model)/urdf/gazebo_sensors.xacro"/>
+    <!-- IMU-->
+    <xacro:default_imu namespace="${namespace}" parent_link="${namespace}/base_link">
+    <origin xyz="0.050 0.050 0.05" rpy="0 0 0"/>
+    </xacro:default_imu>
+    <!-- Pressure-->
+    <xacro:default_pressure namespace="${namespace}" parent_link="${namespace}/base_link">
+        <origin xyz="-0.030 -0.030 0.05" rpy="0 0 0"/>
+    </xacro:default_pressure>
+
+    <!-- ros_control plugin -->
+    <gazebo>
+        <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+        <legacyModeNS>true</legacyModeNS>
+        <robotNamespace>/${namespace}</robotNamespace>
+        <robotSimType>gazebo_ros_control/DefaultRobotHWSim</robotSimType>
+        </plugin>
+    </gazebo>
+
+    
+    <!--Hydrodynamic parameter-->
+    <gazebo>
+      <plugin name="underwater_object_plugin" filename="libuuv_underwater_object_ros_plugin.so">
+	<fluid_density>1025</fluid_density>
+        <flow_velocity_topic>hydrodynamics/current_velocity</flow_velocity_topic>
+        <debug>0</debug>
+        <link name="${namespace}/base_link">
+            <neutrally_buoyant>0</neutrally_buoyant>
+            <volume>0.003099</volume>
+	    <box>
+                <width>0.62</width>
+                <length>0.63</length>
+                <height>0.32</height>
+            </box>
+            <center_of_buoyancy>0.0 0.0 0.18</center_of_buoyancy>
+ 		<hydrodynamic_model>
+ 		<!--type>sphere</type>
+                <radius>0.2</radius-->
+		<type>fossen</type>
+                <added_mass>
+                     3.375 0 0 0 0 0
+                      0  3.375 0 0 0 0
+                      0 0 3.375 0 0 0
+                      0 0 0 0 0 0
+                      0 0 0 0 0 0
+                      0 0 0 0 0 0
+                </added_mass>
+                <linear_damping>
+                    -5 -5 -5 -0.0001 -0.0001 -0.0001
+                </linear_damping>
+                <quadratic_damping>
+                    -0.471 -0.471 -0.499 -0.5 -0.5 -0.5
+                </quadratic_damping>
+          </hydrodynamic_model>
+	</link>
+  
+      </plugin>
+    </gazebo>
+
+</robot>

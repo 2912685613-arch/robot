@@ -4,6 +4,7 @@
 #include <math.h>
 
 #include "c_controller_group.h"
+#include "c_fuzzy_pid.h"
 #include "c_vectoredthrustcontrol.h"
 
 using namespace std;
@@ -375,6 +376,8 @@ namespace CombineCtrl
 
         // 用于在外部设置控制模式
         void setControlMode(ControlMode mode);
+        void setFuzzyXYZEnabled(bool enabled) { fuzzy_xyz_enabled_ = enabled; }
+        void resetFuzzyXYZ();
 
         /**
          * @brief      单环原来用的这个
@@ -426,6 +429,8 @@ namespace CombineCtrl
         C_VectoredThrustControl vec_ctrl;
 
     private:
+        bool fuzzy_xyz_enabled_ = false;
+        ControllerGroup::FuzzyPID fuzzy_x_, fuzzy_y_, fuzzy_z_;
         // 存储当前控制模式
         ControlMode current_mode_;
 

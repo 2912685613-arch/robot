@@ -1,0 +1,285 @@
+<?xml version="1.0"?>
+<!-- Copyright (c) 2016 The UUV Simulator Authors.
+     All rights reserved.
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Some examples of sensors that can be added to the vehicle frame
+  Set the origin of the sensor frames correctly for your application
+  Look into the sensor macros in the package uuv_sensor_ros_plugins/urdf for
+  more examples.
+  -->
+  <!--gazebo tutorial sensors-->
+  <!--Eight Camera--> 
+<xacro:macro name="default_camera" params="namespace joint_name child_link camera_name image_topic camera_info *origin">
+<joint name="${namespace}/${joint_name}" type="revolute">
+    <axis xyz="0 1 0" />
+<xacro:insert_block name="origin" />
+    <parent link="${namespace}/base_link"/>
+    <child link="${namespace}/${child_link}"/>
+   <limit upper="0" lower="0" effort="0" velocity="0" />
+  </joint>
+
+  <link name="${namespace}/${child_link}">
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+    <cylinder length="0.005" radius="0.01575" />
+      </geometry>
+    </collision>
+
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+    <cylinder length="0.005" radius="0.01575" />
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <inertial>
+      <mass value="1e-5" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6" />
+    </inertial>
+  </link>
+
+  <gazebo reference="${namespace}/${child_link}">
+    <sensor type="camera" name="${camera_name}">
+      <update_rate>30.0</update_rate>
+      <camera name="${camera_name}">
+      <pose> 0 0 0 1.5708 -1.5708 0</pose>
+        <horizontal_fov>2.0944</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.02</near>
+          <far>300</far>
+        </clip>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.007</stddev>
+        </noise>
+      </camera>
+      <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+        <alwaysOn>true</alwaysOn>
+        <updateRate>0.0</updateRate>
+        <cameraName>${namespace}/${camera_name}</cameraName>
+        <imageTopicName>${image_topic}</imageTopicName>
+        <cameraInfoTopicName>${camera_info}</cameraInfoTopicName>
+        <frameName>${child_link}</frameName>
+        <hackBaseline>0.0</hackBaseline>
+        <distortionK1>0.0</distortionK1>
+        <distortionK2>0.0</distortionK2>
+        <distortionK3>0.0</distortionK3>
+        <distortionT1>0.0</distortionT1>
+        <distortionT2>0.0</distortionT2>
+      </plugin>
+    </sensor>
+  </gazebo>
+  </xacro:macro>
+
+
+  <!--StereoCamera-->
+  <xacro:macro name="default_stereo_camera" params="namespace">
+      <joint name="${namespace}/camera_joint" type="revolute">
+    <axis xyz="0 1 0" />
+    <!--origin xyz="-0.074 -0.074 0.235" rpy="0 0 -0.7854"/-->
+    <origin xyz="0.1005 0 0.1829" rpy="0 0 1.5708"/>
+    <parent link="${namespace}/base_link"/>
+    <child link="${namespace}/camera_link"/>
+   <limit upper="0" lower="0" effort="0" velocity="0" />
+  </joint>
+
+  <link name="${namespace}/camera_link">
+    <collision>
+      <origin xyz="0.00 0.00 0.00" rpy="0 0 0"/>
+      <geometry>
+    <box size="0.0752 0.005 0.021"/>
+      </geometry>
+    </collision>
+
+    <visual>
+      <origin xyz="0.00 0.00 0.00" rpy="0 0 0"/>
+      <geometry>
+    <box size="0.0752 0.005 0.020"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+
+    <inertial>
+      <mass value="1e-5" />
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6" />
+    </inertial>
+  </link>
+
+  <gazebo reference="${namespace}/camera_link">
+    <sensor type="multicamera" name="stereo_camera">
+      <update_rate>30.0</update_rate>
+      <camera name="left">
+      <pose> 0 0 0 0 0 -1.5708</pose>
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+
+        <clip>
+          <near>0.02</near>
+          <far>300</far>
+        </clip>
+
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.007</stddev>
+        </noise>       
+      </camera>
+
+      <camera name="right">
+        <pose> -0.062 0 0 0 0 -1.5708</pose>
+        <horizontal_fov>1.3962634</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+
+        <clip>
+          <near>0.02</near>
+          <far>300</far>
+        </clip>
+
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.007</stddev>
+        </noise>       
+      </camera>
+
+      <plugin name="stereo_camera_controller" filename="libgazebo_ros_multicamera.so">
+        <alwaysOn>true</alwaysOn>
+        <updateRate>30.0</updateRate>
+        <cameraName>${namespace}/camera</cameraName>
+        <imageTopicName>image_raw</imageTopicName>
+        <cameraInfoTopicName>camera_info</cameraInfoTopicName>
+        <frameName>camera_link</frameName>
+        <hackBaseline>0.062</hackBaseline>
+        <distortionK1>0.0</distortionK1>
+        <distortionK2>0.0</distortionK2>
+        <distortionK3>0.0</distortionK3>
+        <distortionT1>0.0</distortionT1>
+        <distortionT2>0.0</distortionT2>
+      </plugin>
+    </sensor>
+  </gazebo>
+  </xacro:macro>
+
+
+
+<!--IMU-->
+  <xacro:macro name="default_imu" params="namespace parent_link *origin">
+    
+    <joint name="${namespace}/imu_joint" type="revolute">
+        <axis xyz="0 1 0" />
+        
+        <xacro:insert_block name="origin" />
+        
+        <parent link="${parent_link}"/>
+        
+        <child link="${namespace}/imu_link"/>
+        <limit upper="0" lower="0" effort="0" velocity="0" />
+    </joint>
+
+    <link name="${namespace}/imu_link">
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="0.03 0.05 0.015"/>
+            </geometry>
+        </collision>
+
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <box size="0.03 0.05 0.015"/>
+            </geometry>
+            <material name="green"/>
+        </visual>
+
+        <inertial>
+            <mass value="1e-5" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6" />
+        </inertial>
+    </link>
+
+    <gazebo>
+        <plugin name="imu_plugin" filename="libgazebo_ros_imu.so">
+            <alwaysOn>true</alwaysOn>
+            <bodyName>${namespace}/imu_link</bodyName>
+            <topicName>${namespace}/imu</topicName>
+            <serviceName>imu_service</serviceName>
+            <gaussianNoise>0.0</gaussianNoise>
+            <updateRate>20.0</updateRate>
+        </plugin>
+    </gazebo>
+</xacro:macro>
+
+
+
+  <!-- <xacro:macro name="custom_pressure" params="namespace parent_link *origin">
+    <link name="${namespace}/pressure_link">
+      <visual>
+        <geometry>
+           <cylinder length="0.01" radius="0.01"/> </geometry>
+        <material name="black"/>
+      </visual>
+      <collision>
+        <geometry>
+           <cylinder length="0.01" radius="0.01"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="0.001" />
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <inertia ixx="0.0001" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.0001" />
+      </inertial>
+    </link>
+
+    <joint name="${namespace}/pressure_joint" type="revolute">
+      <xacro:insert_block name="origin" />
+      <parent link="${parent_link}" />
+      <child link="${namespace}/pressure_link" />
+      <limit upper="0" lower="0" effort="0" velocity="0" />
+      <axis xyz="1 0 0" />
+    </joint>
+
+    <gazebo reference="${namespace}/pressure_link">
+      <sensor name="pressure_sensor" type="depth">
+        <plugin name="pressure_sensor_controller" filename="libuuv_gazebo_ros_subsea_pressure_plugin.so">
+            <saturation>3000</saturation>
+            <estimateDepth>false</estimateDepth>
+            <standardDeviation>0.0</standardDeviation>
+            <updateRate>50</updateRate>
+        </plugin>
+      </sensor>
+    </gazebo>
+  </xacro:macro> -->
+</robot>

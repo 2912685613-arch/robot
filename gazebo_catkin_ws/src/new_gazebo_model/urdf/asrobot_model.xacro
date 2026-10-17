@@ -1,0 +1,1207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot name="$(arg namespace)"
+  xmlns:xacro="http://www.ros.org/wiki/xacro">
+  
+  <xacro:arg name="namespace" default=""/>
+  <xacro:property name="namespace" value="$(arg namespace)"/>
+  <link
+    name="${namespace}/base_link">
+    <inertial>
+      <origin
+        xyz="-0.00105712870159643 0.00285950128605448 0.0313867994773873"
+        rpy="0 0 0" />
+      <mass
+        value="2.25985967347469" />
+      <inertia
+        ixx="0.0111372762590318"
+        ixy="-8.4858915951795E-07"
+        ixz="-1.45955109634006E-06"
+        iyy="0.0114704846546737"
+        iyz="-4.12029987503468E-06"
+        izz="0.0203190115658002" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 0.501960784313725 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="${namespace}/H1_link">
+    <inertial>
+      <origin
+        xyz="0.0549280172373651 0.000164130319108228 0.0172139268193449"
+        rpy="0 0 0" />
+      <mass
+        value="0.053569966078289" />
+      <inertia
+        ixx="1.21641518637593E-05"
+        ixy="3.90943805077354E-07"
+        ixz="-9.55483595426251E-07"
+        iyy="1.41418407719947E-05"
+        iyz="9.32911434109008E-08"
+        izz="1.88891663706927E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/H1_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/H1_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="H1"
+    type="revolute">
+    <origin
+      xyz="0.0481510937331128 0.0481701345221451 -0.0126999999999998"
+      rpy="3.14159265358979 0 0.78539816339762" />
+    <parent
+      link="${namespace}/base_link" />
+    <child
+      link="${namespace}/H1_link" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-0.785"
+      upper="0.785"
+      effort="15"
+      velocity="1" />
+  </joint>
+  <link
+    name="${namespace}/M1_link">
+    <inertial>
+      <origin
+        xyz="0.0436870183373137 -0.004986678859908 -0.0284876384618408"
+        rpy="0 0 0" />
+      <mass
+        value="0.0131761805611648" />
+      <inertia
+        ixx="8.00888363606106E-06"
+        ixy="1.78220130482681E-06"
+        ixz="1.63428887843028E-07"
+        iyy="1.14816107736751E-05"
+        iyz="-6.22681393592455E-08"
+        izz="5.91441635100301E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/M1_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/M1_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="M1"
+    type="revolute">
+    <origin
+      xyz="0.0883999999962027 0.0285500000000145 0.0183899999976855"
+      rpy="-1.57079632679489 0 0" />
+    <parent
+      link="${namespace}/H1_link" />
+    <child
+      link="${namespace}/M1_link" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-0.785"
+      upper="1.047"
+      effort="15"
+      velocity="1" />
+  </joint>
+  <link
+    name="${namespace}/V1_link">
+    <inertial>
+      <origin
+        xyz="-0.0265470010691142 0.0289944524725337 -0.0305033683291048"
+        rpy="0 0 0" />
+      <mass
+        value="0.154187086824696" />
+      <inertia
+        ixx="4.04194516141698E-05"
+        ixy="-7.14730193372182E-08"
+        ixz="-3.9339971179272E-07"
+        iyy="7.70860158519312E-05"
+        iyz="4.65227857108769E-10"
+        izz="6.9120790146021E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/V1_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.529411764705882 0.549019607843137 0.549019607843137 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/V1_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="V1"
+    type="revolute">
+    <origin
+      xyz="0.0928937750114271 -0.0292900144790524 0.00239958160013347"
+      rpy="-1.35254085440144E-05 0 2.9147" />
+    <parent
+      link="${namespace}/M1_link" />
+    <child
+      link="${namespace}/V1_link" />
+    <axis
+      xyz="0 0 -0.999999999994937" />
+    <limit
+      lower="-0.53"
+      upper="1.57"
+      effort="15"
+      velocity="1" />
+  </joint>
+  <link
+    name="${namespace}/thruster_0">
+    <inertial>
+      <origin
+        xyz="-0.0382219786752662 7.495102121724E-07 -3.77390903995994E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.00310709972638259" />
+      <inertia
+        ixx="2.04085346770568E-07"
+        ixy="-8.02372661151691E-12"
+        ixz="3.44840954897265E-12"
+        iyy="1.74388225339894E-07"
+        iyz="-7.42698706783055E-11"
+        izz="1.73158117612657E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/Thruster_0.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/Thruster_0.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="${namespace}/thruster_0_joint"
+    type="continuous">
+    <origin
+      xyz="-0.115834253601767 0.0381999999977453 -0.0304000000004756"
+      rpy="0 0 3.14159265358979" />
+    <parent
+      link="${namespace}/V1_link" />
+    <child
+      link="${namespace}/thruster_0" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <!-- <link
+    name="${namespace}/Sucker1_link">
+    <inertial>
+      <origin
+        xyz="-0.0180160355315567 0.000106314618406461 0.000598365698227594"
+        rpy="0 0 0" />
+      <mass
+        value="0.0273851033200096" />
+      <inertia
+        ixx="2.03861281643756E-05"
+        ixy="-3.2719301664553E-21"
+        ixz="4.09628275356436E-21"
+        iyy="1.17280883921193E-05"
+        iyz="-9.37739645190366E-08"
+        izz="1.12476709547968E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/Sucker1_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.341176470588235 0.83921568627451 0.411764705882353 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/Sucker1_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Sucker1"
+    type="revolute">
+    <origin
+      xyz="-0.115834253601767 0.0381999999977453 -0.0304000000004756"
+      rpy="0 0 3.14159265358979" />
+    <parent
+      link="${namespace}/V1_link" />
+    <child
+      link="${namespace}/Sucker1_link" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint> -->
+  <link
+    name="${namespace}/H3_link">
+    <inertial>
+      <origin
+        xyz="0.0549278354735606 0.00016775211778847 0.0171897351923946"
+        rpy="0 0 0" />
+      <mass
+        value="0.0535699660782892" />
+      <inertia
+        ixx="1.21639717067769E-05"
+        ixy="3.88267257126372E-07"
+        ixz="-9.73431016607549E-07"
+        iyy="1.41417656287381E-05"
+        iyz="9.28369118576033E-08"
+        izz="1.88894216709318E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/H2_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/H2_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="H3"
+    type="revolute">
+    <origin
+      xyz="-0.0481423365673524 -0.0481232957783366 -0.0127"
+      rpy="3.14159265358979 0 -2.35619449019234" />
+    <parent
+      link="${namespace}/base_link" />
+    <child
+      link="${namespace}/H3_link" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-0.785"
+      upper="0.785"
+      effort="15"
+      velocity="1" />
+  </joint>
+  <link
+    name="${namespace}/M3_link">
+    <inertial>
+      <origin
+        xyz="0.0435453856383741 -0.00449103331257755 -0.0285088039669814"
+        rpy="0 0 0" />
+      <mass
+        value="0.0125330082282777" />
+      <inertia
+        ixx="8.0003449279651E-06"
+        ixy="1.7822013046897E-06"
+        ixz="1.63428887845855E-07"
+        iyy="1.14730720658603E-05"
+        iyz="-6.22680919927382E-08"
+        izz="5.89887456608277E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/M2_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/M2_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="M3"
+    type="revolute">
+    <origin
+      xyz="0.0883999999996082 0.0285499999999959 0.0183899999997548"
+      rpy="-1.5707963267949 0 0" />
+    <parent
+      link="${namespace}/H3_link" />
+    <child
+      link="${namespace}/M3_link" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-0.785"
+      upper="1.047"
+      effort="15"
+      velocity="1" />
+  </joint>
+  <link
+    name="${namespace}/V3_link">
+    <inertial>
+      <origin
+        xyz="-0.0265469956849418 -0.0289939914800782 0.0352537607944284"
+        rpy="0 0 0" />
+      <mass
+        value="0.154187086818471" />
+      <inertia
+        ixx="4.04194516128228E-05"
+        ixy="7.14783405792016E-08"
+        ixz="3.93398745303235E-07"
+        iyy="7.70860158609954E-05"
+        iyz="3.57495278670461E-10"
+        izz="6.91207901338747E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/V2_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/V2_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="V3"
+    type="revolute">
+    <origin
+      xyz="0.0928937750100401 -0.0292900787186905 0.00714958159925573"
+      rpy="3.14159265358979 0 2.9147" />
+    <parent
+      link="${namespace}/M3_link" />
+    <child
+      link="${namespace}/V3_link" />
+    <axis
+      xyz="0 1.3211980828014E-05 0.999999999908532" />
+    <limit
+      lower="-0.53"
+      upper="1.57"
+      effort="15"
+      velocity="1" />
+  </joint>
+  <link
+    name="${namespace}/thruster_2">
+    <inertial>
+      <origin
+        xyz="-0.0382219840566146 7.33676184472287E-07 -3.77701347437781E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.00310709972635592" />
+      <inertia
+        ixx="2.04085346895478E-07"
+        ixy="-8.02364472079984E-12"
+        ixz="3.44848952654691E-12"
+        iyy="1.74388225412386E-07"
+        iyz="-7.4269808826504E-11"
+        izz="1.73158117677282E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/Thruster_1.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/Thruster_1.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="${namespace}/thruster_2_joint"
+    type="continuous">
+    <origin
+      xyz="-0.115834253600352 -0.0381995245781067 0.0351505166673803"
+      rpy="-3.14157912818125 0 -3.14159265358979" />
+    <parent
+      link="${namespace}/V3_link" />
+    <child
+      link="${namespace}/thruster_2" />
+    <axis
+      xyz="-1 0 0" />
+  </joint>
+  <!-- <link
+    name="${namespace}/Sucker2_link">
+    <inertial>
+      <origin
+        xyz="-0.0180160405024067 0.000349177296855935 0.000497402256033196"
+        rpy="0 0 0" />
+      <mass
+        value="0.0273851033200096" />
+      <inertia
+        ixx="2.03861281643756E-05"
+        ixy="9.06731523648078E-21"
+        ixz="9.54955997501054E-21"
+        iyy="1.15703832024034E-05"
+        iyz="-2.68543124645373E-07"
+        izz="1.14053761445127E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/Sucker2_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.341176470588235 0.83921568627451 0.411764705882353 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/Sucker2_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Sucker2"
+    type="revolute">
+    <origin
+      xyz="-0.115834253600352 -0.0381995245781067 0.0351505166673803"
+      rpy="-3.14157912818125 0 -3.14159265358979" />
+    <parent
+      link="${namespace}/V2_link" />
+    <child
+      link="${namespace}/Sucker2_link" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint> -->
+  <link
+    name="${namespace}/H2_link">
+    <inertial>
+      <origin
+        xyz="0.053772346867855 6.40524511046717E-05 0.0125776346607445"
+        rpy="0 0 0" />
+      <mass
+        value="0.0545684005482649" />
+      <inertia
+        ixx="1.22137311269981E-05"
+        ixy="4.64304143769047E-07"
+        ixz="-8.71613415603369E-07"
+        iyy="1.41837515763636E-05"
+        iyz="9.67591246499739E-08"
+        izz="1.89681203210757E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/H3_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/H3_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="H2"
+    type="revolute">
+    <origin
+      xyz="0.0481510937331116 -0.0481223196202497 -0.0171999999999998"
+      rpy="-3.14159265358979 0 -0.785398163397445" />
+    <parent
+      link="${namespace}/base_link" />
+    <child
+      link="${namespace}/H2_link" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-0.785"
+      upper="0.785"
+      effort="15"
+      velocity="1" />
+  </joint>
+  <link
+    name="${namespace}/M2_link">
+    <inertial>
+      <origin
+        xyz="0.0464615721100602 -0.00479178996093388 -0.0287244803078838"
+        rpy="0 0 0" />
+      <mass
+        value="0.0117463672704615" />
+      <inertia
+        ixx="7.98028331590444E-06"
+        ixy="1.78220130496202E-06"
+        ixz="1.63428887840598E-07"
+        iyy="1.14530104532399E-05"
+        iyz="-6.22680920058338E-08"
+        izz="5.86044668087827E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/M3_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/M3_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="M2"
+    type="revolute">
+    <origin
+      xyz="0.0883999999912401 0.0270250000318048 0.0138899999662677"
+      rpy="-1.5707963267949 0 0" />
+    <parent
+      link="${namespace}/H2_link" />
+    <child
+      link="${namespace}/M2_link" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-0.785"
+      upper="1.047"
+      effort="15"
+      velocity="1" />
+  </joint>
+  <link
+    name="${namespace}/V2_link">
+    <inertial>
+      <origin
+        xyz="0.0287101152777924 0.0263223561239998 -0.0307840677225047"
+        rpy="0 0 0" />
+      <mass
+        value="0.157427417224536" />
+      <inertia
+        ixx="7.94434468138505E-05"
+        ixy="1.23559346271345E-07"
+        ixz="4.64457381799577E-10"
+        iyy="4.30926032095092E-05"
+        iyz="3.93396652235126E-07"
+        izz="6.96831467810361E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/V3_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/V3_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="V2"
+    type="revolute">
+    <origin
+      xyz="0.0928937750175826 -0.0292900246530483 0.00467458156793882"
+      rpy="0 1.35254085456798E-05 -1.797686" />
+    <parent
+      link="${namespace}/M2_link" />
+    <child
+      link="${namespace}/V2_link" />
+    <axis
+      xyz="0 0 -0.999999999997319" />
+    <limit
+      lower="-0.53"
+      upper="1.57"
+      effort="15"
+      velocity="1" />
+  </joint>
+  <link
+    name="${namespace}/thruster_1">
+    <inertial>
+      <origin
+        xyz="-0.0382219803773194 7.69777666498328E-07 -4.28174929604781E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.00310712123389778" />
+      <inertia
+        ixx="2.0408728416191E-07"
+        ixy="-8.27886325374626E-12"
+        ixz="3.23651581676325E-12"
+        iyy="1.74389868647366E-07"
+        iyz="-7.39244744333831E-11"
+        izz="1.73158904671966E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/Thruster_2.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/Thruster_2.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="${namespace}/thruster_1_joint"
+    type="continuous">
+    <origin
+      xyz="0.0381999999996908 0.115834253600545 -0.031150000000153"
+      rpy="0 0 1.5707963267949" />
+    <parent
+      link="${namespace}/V2_link" />
+    <child
+      link="${namespace}/thruster_1" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <!-- <link
+    name="${namespace}/Sucker3_link">
+    <inertial>
+      <origin
+        xyz="-0.0180160354368897 0.000249453768766228 0.000554181297947069"
+        rpy="0 0 0" />
+      <mass
+        value="0.0273851033200096" />
+      <inertia
+        ixx="2.03861281643756E-05"
+        ixy="6.48041360347309E-22"
+        ixz="-2.6311757592635E-21"
+        iyy="1.16843859179521E-05"
+        iyz="-2.05449556548795E-07"
+        izz="1.1291373428964E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/Sucker3_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.341176470588235 0.83921568627451 0.411764705882353 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/Sucker3_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Sucker3"
+    type="revolute">
+    <origin
+      xyz="0.0381999999996908 0.115834253600545 -0.031150000000153"
+      rpy="0 0 1.5707963267949" />
+    <parent
+      link="${namespace}/V3_link" />
+    <child
+      link="${namespace}/Sucker3_link" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint> -->
+  <link
+    name="${namespace}/H4_link">
+    <inertial>
+      <origin
+        xyz="0.0542410862929703 -0.000176476276955069 0.0148454023525977"
+        rpy="0 0 0" />
+      <mass
+        value="0.0553169009992899" />
+      <inertia
+        ixx="1.22306918430551E-05"
+        ixy="3.76484532718274E-07"
+        ixz="-8.71554683707931E-07"
+        iyy="1.42040181931719E-05"
+        iyz="9.48288730094993E-08"
+        izz="1.89857177415392E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/H4_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/H4_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="H4"
+    type="revolute">
+    <origin
+      xyz="-0.0481413604092826 0.0481701345221434 -0.0149499999999995"
+      rpy="-3.14159265358979 0 2.35619449019234" />
+    <parent
+      link="${namespace}/base_link" />
+    <child
+      link="${namespace}/H4_link" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-0.785"
+      upper="0.785"
+      effort="15"
+      velocity="1" />
+  </joint>
+  <link
+    name="${namespace}/M4_link">
+    <inertial>
+      <origin
+        xyz="0.00449103432380654 0.0435453858549747 -0.0269838031255515"
+        rpy="0 0 -1.57" />
+      <mass
+        value="0.0125330082282776" />
+      <inertia
+        ixx="1.14730720657005E-05"
+        ixy="-1.78220130484462E-06"
+        ixz="6.22680920002983E-08"
+        iyy="8.00034492812512E-06"
+        iyz="1.63428887842764E-07"
+        izz="5.89887456608298E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 -1.57" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/M4_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 -1.57" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/M4_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="M4"
+    type="revolute">
+    <origin
+      xyz="0.08840000101928 0.027024999563449 0.0161399962116731"
+      rpy="-1.5707963267949 0 0" />
+    <parent
+      link="${namespace}/H4_link" />
+    <child
+      link="${namespace}/M4_link" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-0.785"
+      upper="1.047"
+      effort="15"
+      velocity="1" />
+  </joint>
+  <link
+    name="${namespace}/V4_link">
+    <inertial>
+      <origin
+        xyz="0.029001627013889 0.0265535731169692 -0.030989158548168"
+        rpy="0 0 0" />
+      <mass
+        value="0.154148946349126" />
+      <inertia
+        ixx="7.70835518341885E-05"
+        ixy="7.1473166667996E-08"
+        ixz="4.64453295544316E-10"
+        iyy="4.04169874298329E-05"
+        iyz="3.93396701670849E-07"
+        izz="6.91019920584162E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/V4_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/V4_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="V4"
+    type="revolute">
+    <origin
+      xyz="0.0928937750175826 -0.0292900246530483 0.00467458156793882"
+      rpy="0 1.35254085456798E-05 -1.797686" />
+    <parent
+      link="${namespace}/M4_link" />
+    <child
+      link="${namespace}/V4_link" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-0.53"
+      upper="1.57"
+      effort="15"
+      velocity="1" />
+  </joint>
+  <link
+    name="${namespace}/thruster_3">
+    <inertial>
+      <origin
+        xyz="-0.0382219803135281 7.69884210438665E-07 -4.27886775376438E-07"
+        rpy="0 0 0" />
+      <mass
+        value="0.00310712123380363" />
+      <inertia
+        ixx="2.04087284174108E-07"
+        ixy="-8.27887245002549E-12"
+        ixz="3.2364535192059E-12"
+        iyy="1.74389868665337E-07"
+        iyz="-7.39245187430156E-11"
+        izz="1.7315890469114E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/Thruster_3.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/Thruster_3.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="${namespace}/thruster_3_joint"
+    type="continuous">
+    <origin
+      xyz="0.0382000000918225 0.115834253569819 -0.0311500000000258"
+      rpy="0 0 1.57079632600381" />
+    <parent
+      link="${namespace}/V4_link" />
+    <child
+      link="${namespace}/thruster_3" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <!-- <link
+    name="${namespace}/Sucker4_link">
+    <inertial>
+      <origin
+        xyz="-0.018016035361839 8.52547886715516E-05 0.000601727512282793"
+        rpy="0 0 0" />
+      <mass
+        value="0.0273851033200096" />
+      <inertia
+        ixx="2.03861281643755E-05"
+        ixy="1.66196908142161E-21"
+        ixz="1.32602935530966E-21"
+        iyy="1.17650650358927E-05"
+        iyz="-7.17120311255608E-08"
+        izz="1.12106943110234E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/Sucker4_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.341176470588235 0.83921568627451 0.411764705882353 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://new_gazebo_model/meshes/Sucker4_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Sucker4"
+    type="revolute">
+    <origin
+      xyz="0.0382000000918225 0.115834253569819 -0.0311500000000258"
+      rpy="0 0 1.57079632600381" />
+    <parent
+      link="${namespace}/V4_link" />
+    <child
+      link="${namespace}/Sucker4_link" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      lower="0"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint> -->
+
+
+</robot>

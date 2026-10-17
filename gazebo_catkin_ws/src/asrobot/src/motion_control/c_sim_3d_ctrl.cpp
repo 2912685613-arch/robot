@@ -1693,6 +1693,7 @@ namespace CombineCtrl
         : cur_p_x_(0), cur_p_y_(0), cur_p_z_(0), cur_yaw_(0), exp_p_x_(0), exp_p_y_(0), exp_p_z_(0), exp_yaw_(0), cur_v_x_(0), cur_v_y_(0), cur_v_z_(0), exp_v_x_(0), exp_v_y_(0), exp_v_z_(0), filtered_cur_v_z_(0), shape_(0), current_debug_mode_(NAV_NORMAL), // 默认是正常导航模式
           debug_target_value_(0.0f)
     {
+        setControlMode(SINGLE_LOOP);
         initialize_all_PIDs();
         // setControlMode(DUAL_LOOP);
         // setControlMode(SINGLE_LOOP);
@@ -1701,6 +1702,13 @@ namespace CombineCtrl
     void C_Combine3DPidControl::setControlMode(ControlMode mode)
     {
         this->current_mode_ = mode;
+    }
+
+    void C_Combine3DPidControl::resetFuzzyXYZ()
+    {
+        fuzzy_x_.reset();
+        fuzzy_y_.reset();
+        fuzzy_z_.reset();
     }
 
     void C_Combine3DPidControl::setDebugMode(ControlDebugMode mode, float debug_target)
@@ -2181,9 +2189,15 @@ namespace CombineCtrl
             float y_error = exp_p_y_ - cur_p_y_;
             float depth_error = exp_p_z_ - cur_p_z_;
 
-            float desired_world_x_force = vec_ctrl.mcXPID.pidNewCalc(x_error);
-            float desired_world_y_force = vec_ctrl.mcYPID.pidNewCalc(y_error);
-            float desired_z_force = vec_ctrl.mcDepthPID.pidNewCalc(depth_error);
+            float desired_world_x_force = fuzzy_xyz_enabled_ ?
+                fuzzy_x_.calculate(x_error, vec_ctrl.mcXPID.getKp(), vec_ctrl.mcXPID.getKi(), vec_ctrl.mcXPID.getKd()) :
+                vec_ctrl.mcXPID.pidNewCalc(x_error);
+            float desired_world_y_force = fuzzy_xyz_enabled_ ?
+                fuzzy_y_.calculate(y_error, vec_ctrl.mcYPID.getKp(), vec_ctrl.mcYPID.getKi(), vec_ctrl.mcYPID.getKd()) :
+                vec_ctrl.mcYPID.pidNewCalc(y_error);
+            float desired_z_force = fuzzy_xyz_enabled_ ?
+                fuzzy_z_.calculate(depth_error, vec_ctrl.mcDepthPID.getKp(), vec_ctrl.mcDepthPID.getKi(), vec_ctrl.mcDepthPID.getKd()) :
+                vec_ctrl.mcDepthPID.pidNewCalc(depth_error);
 
             // =================================================================
             // 步骤 2: 【关键】将世界坐标系力旋转到机器人坐标系

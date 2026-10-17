@@ -1,0 +1,8 @@
+# Command channels: H1 M1 V1 H2 M2 V2 H3 M3 V3 H4 M4 V4.
+# q_model [rad] = scale * q_controller [rad] + offset_deg * pi / 180.
+# The CAD frames of legs 2/4 invert the vertical steering direction.
+# Existing controller neutral: M1=-2 deg, other M=0 deg, all V=-14 deg.
+# CAD horizontal-thrust neutral: V1=-11 deg, other V=-13 deg.
+# Apply only with new_gazebo_model; leave old-model launches at identity.
+joint_command_scale:      [1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0]
+joint_command_offset_deg: [0.0, 0.0, 3.0, 0.0, 0.0, -27.0, 0.0, 0.0, 1.0, 0.0, 0.0, -27.0]

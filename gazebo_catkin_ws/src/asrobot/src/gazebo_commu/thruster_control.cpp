@@ -64,8 +64,10 @@ int main(int argc, char **argv)
     for(int id = 0; id < 4; id++)
     {
         if (!GetThrustClient[id].call(getsrv))
+        {
             setsrv.request.on = true;
             SetThrustClient[id].call(setsrv);
+        }
     }
 
     while(ros::ok())
