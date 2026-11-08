@@ -71,7 +71,7 @@ void print_header(const std::string &title, bool is_state_change = false)
 
 // 全局变量，保存当前状态
 RobotMode g_current_state = RobotMode::IDLE;
-bool fuzzy_xyz_enabled = true;
+bool fuzzy_pid_enabled = true;
 
 // ===================================================================================
 // 2. 逻辑处理函数 (从 mccallback 和 main 循环中拆分)
@@ -124,15 +124,25 @@ void handle_manual_depthyaw()
 
 void handle_xyz_target()
 {
-    ROS_INFO_STREAM_THROTTLE(1.0,
-                             "--- XYZ TARGET CONTROL ---\n"
-                                 << "  [Target] X: " << exp_p_x << ", Y: " << exp_p_y << ", Z: " << exp_p_z << "\n"
-                                 << "  [Actual] X: " << cur_p_x << ", Y: " << cur_p_y << ", Z: " << cur_p_z << "\n"
-                                 << "  [Computed Target Yaw]: " << exp_yaw << ", [Actual Yaw]: " << cur_yaw);
-
-    combine3DPidCtrl.setFuzzyXYZEnabled(fuzzy_xyz_enabled);
+    combine3DPidCtrl.setXYZPIDLogEnabled(true);
     PidXYZControl_X(exp_p_x, exp_p_y, exp_p_z, cur_p_x, cur_p_y, cur_p_z, cur_yaw);
-    combine3DPidCtrl.setFuzzyXYZEnabled(false);
+    combine3DPidCtrl.setXYZPIDLogEnabled(false);
+}
+
+void xyzLogTimerCallback(const ros::WallTimerEvent &)
+{
+    if (g_current_state != RobotMode::MANUAL_XYZ_TARGET)
+        return;
+
+    const std::string &snapshot = combine3DPidCtrl.getXYZPIDSnapshot();
+    const double age = snapshot.empty() ? 0.0 :
+        (ros::WallTime::now() - combine3DPidCtrl.getXYZPIDSnapshotTime()).toSec();
+    ROS_INFO_STREAM("--- XYZ TARGET CONTROL ---\n"
+                    << "  [Target] X: " << exp_p_x << ", Y: " << exp_p_y << ", Z: " << exp_p_z << "\n"
+                    << "  [Actual] X: " << cur_p_x << ", Y: " << cur_p_y << ", Z: " << cur_p_z << "\n"
+                    << "  [Computed Target Yaw]: " << exp_yaw << ", [Actual Yaw]: " << cur_yaw << "\n"
+                    << "  PID snapshot age (s): " << age << "\n"
+                    << (snapshot.empty() ? "  Waiting for position feedback" : snapshot));
 }
 
 void handle_grasp_target()
@@ -195,15 +205,16 @@ void handle_docking_aruco(const asrobot::mc::ConstPtr &msg) // 对接
 // =================================================================
 void handle_debug_vz()
 {
-    combine3DPidCtrl.updateControl(SHAPE_X,
-                                   0, 0, 0, 0, 0, 0, 0,
-                                   cur_p_x, cur_p_y, cur_yaw, cur_p_z, cur_v_x, cur_v_y, cur_v_z);
+    combine3DPidCtrl.setDebugMode(NAV_NORMAL);
+    combine3DPidCtrl.setHeaveInnerOnly(true);
     combine3DPidCtrl.updateControl(SHAPE_X,
                                    0, 0, 0, exp_p_z, 0, 0, 0,
                                    cur_p_x, cur_p_y, cur_yaw, cur_p_z, cur_v_x, cur_v_y, cur_v_z);
 }
 void handle_debug_pz()
 {
+    combine3DPidCtrl.setDebugMode(NAV_NORMAL);
+    combine3DPidCtrl.setHeaveInnerOnly(false);
     combine3DPidCtrl.updateControl(SHAPE_X,
                                    0, 0, 0, exp_p_z, 0, 0, 0,
                                    0, 0, cur_yaw, cur_p_z, cur_v_x, cur_v_y, cur_v_z);
@@ -235,6 +246,16 @@ void mccallback(const asrobot::mc::ConstPtr &msg)
     cam_cur_p_z = msg->cam_c_z;
     cam_cur_yaw = msg->cam_c_yaw;
     cam_exp_yaw = msg->cam_e_yaw;
+
+    // 总开关仅作用于手动 PID 命令，不改变自主对接及 ADRC/步态算法。
+    const bool manual_pid = g_current_state == RobotMode::MANUAL_YAW ||
+        g_current_state == RobotMode::MANUAL_DEPTH || g_current_state == RobotMode::MANUAL_DEPTH_YAW ||
+        g_current_state == RobotMode::MANUAL_XYZ_TARGET || g_current_state == RobotMode::DEBUGVZ ||
+        g_current_state == RobotMode::DEBUGPZ;
+    combine3DPidCtrl.setManualPIDActive(manual_pid);
+    combine3DPidCtrl.setFuzzyPIDEnabled(manual_pid && fuzzy_pid_enabled);
+    combine3DPidCtrl.setControlMode(g_current_state == RobotMode::DEBUGVZ ||
+        g_current_state == RobotMode::DEBUGPZ ? C_Combine3DPidControl::DUAL_LOOP : C_Combine3DPidControl::SINGLE_LOOP);
 
     // 根据当前状态，调用对应的处理函数
     // 注意：这里的逻辑现在是事件驱动的，每次收到mc_message都会执行
@@ -326,21 +347,23 @@ void cmdcallback(const std_msgs::String::ConstPtr &msg)
     }
     else if (cmd[0] == "xyz" && cmd.size() == 4)
     {
-        combine3DPidCtrl.resetFuzzyXYZ();
         g_current_state = RobotMode::MANUAL_XYZ_TARGET;
         exp_p_x = std::stod(cmd[1]);
         exp_p_y = std::stod(cmd[2]);
         exp_p_z = std::stod(cmd[3]);
         print_header("-> XYZ TARGET", true);
     }
-    else if (cmd[0] == "fuzzyxyz" && cmd.size() == 2 && (cmd[1] == "on" || cmd[1] == "off"))
+    else if (cmd[0] == "fuzzypid" && cmd.size() == 2 && (cmd[1] == "on" || cmd[1] == "off"))
     {
-        fuzzy_xyz_enabled = cmd[1] == "on";
-        combine3DPidCtrl.resetFuzzyXYZ();
-        combine3DPidCtrl.vec_ctrl.mcXPID.pidReset();
-        combine3DPidCtrl.vec_ctrl.mcYPID.pidReset();
-        combine3DPidCtrl.vec_ctrl.mcDepthPID.pidReset();
-        ROS_INFO("XYZ fuzzy PID %s", fuzzy_xyz_enabled ? "on" : "off");
+        const bool enabled = cmd[1] == "on";
+        if (enabled != fuzzy_pid_enabled)
+            combine3DPidCtrl.resetManualPIDs();
+        fuzzy_pid_enabled = enabled;
+        ROS_INFO("Manual fuzzy PID %s (yaw/dep/depyaw/xyz/vz/pz)", enabled ? "on" : "off");
+    }
+    else if (cmd[0] == "fuzzyxyz")
+    {
+        ROS_WARN("Use fuzzypid on/off to switch all manual PID controllers.");
     }
     else if (cmd[0] == "dock") // docking-aruco
     {                          // trackaruco
@@ -453,8 +476,11 @@ void cmdcallback(const std_msgs::String::ConstPtr &msg)
         }
     }
 
-    if (previous_state == RobotMode::MANUAL_XYZ_TARGET && g_current_state != previous_state)
-        combine3DPidCtrl.resetFuzzyXYZ();
+    if (g_current_state != previous_state)
+        combine3DPidCtrl.resetManualPIDs();
+    else if (cmd[0] == "xyz" || cmd[0] == "yaw" || cmd[0] == "dep" ||
+             cmd[0] == "depyaw" || cmd[0] == "pz" || cmd[0] == "vz")
+        combine3DPidCtrl.resetManualPIDHistory();
 
     // ... 其他命令 ...
 }
@@ -495,17 +521,18 @@ int main(int argc, char **argv)
     // ros::Duration(1.0).sleep();
     //  定时器
     ros::Timer timer_saveData = n.createTimer(ros::Duration(0.1), saveDataTimerCallback); // 假设 DURATION 是 0.1
+    ros::WallTimer timer_xyzLog = n.createWallTimer(ros::WallDuration(1.0 / 30.0), xyzLogTimerCallback);
 
     // 控制器参数初始化
     simMotorForce(0, 0, 0, 0, 0, 0, 0);
     /// PID 控制器参数设置
     // setYawPIDPmt(0.1, 0.005, 0.01);
     setYawPIDPmt(0.025, 0.011, 0.06); // 航向
-    setDepthPIDPmt(1.25, 0.006, 0.02);
+    setDepthPIDPmt(1.6, 0.02, 0.1);
     setPitchPIDPmt(0.5, 0.04, 0.15);
     setSpeedPIDPmt(0.8, 0, 0.2); // H型前进
-    setXPIDPmt(0.5, 0, 0.2);
-    setYPIDPmt(0.5, 0, 0.2);
+    setXPIDPmt(0.6, 0, 0.5);
+    setYPIDPmt(0.6, 0, 0.5);
 
     setPxADRCPmt(1.5, 0.1, 27, 0);
     setPyADRCPmt(1.5, 0.1, 27, 0);

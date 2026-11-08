@@ -1,3 +1,11 @@
+/**
+ * @file aruco_det_singlemaker.cpp
+ * @brief 【参考／次要文件】单标记检测版本，当前 CMakeLists.txt 未编译，launch 未启动。
+ * 适合学习最基本的“收图 -> 检测角点 -> 位姿估计 -> 按 ID 发布”流程。
+ * 默认输入 /usb_cam/image_raw；输出 /aruco/pose 和 aruco_det_image。
+ * 相比双标记主程序，没有大小码切换；不要当成当前实际运行的入口。
+ * 旧参数、被注释的试验语句和显示日志可最后阅读。
+ */
 #include "ros/ros.h"
 #include "sensor_msgs/Image.h" //引入ROS图像消息类型，用于处理图像数据
 #include "cv_bridge/cv_bridge.h" //提供了ROS消息和OpenCV图像之间的转换
@@ -13,6 +21,11 @@
 cv::Mat frame; //初始化frame时不指定分辨率和类型，这样保证程序可以接受任意分辨率的图片，以及rgb图或者灰度图。  
 //cv::Mat frame = cv::Mat( 480, 640, CV_8UC3, cv::Scalar(0));;
 
+/**
+ * @brief 【本文件重要】接收 ROS 图像，转成 BGR8 并缓存到全局 frame。
+ * @param msg 相机图像；转换异常时打印错误并返回。
+ * @return 无；cv::Mat 使用引用计数保留图像数据，后续由 main 处理。
+ */
 void cam_imageCallback(const sensor_msgs::ImageConstPtr &msg)
 {
     try
@@ -36,6 +49,12 @@ void cam_imageCallback(const sensor_msgs::ImageConstPtr &msg)
 
 
 
+/**
+ * @brief 【本文件入口】读取单码参数、相机标定，以 10 Hz 检测并发布选定 ID 的位姿。
+ * @param argc/argv ROS 启动参数。
+ * @return 正常退出返回 0；YAML 加载异常在此版本中未捕获。
+ * 重要参数：aruco_id 是目标 ID，aruco_length 是实际边长（米）。
+ */
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "aruco_det_node");
@@ -49,6 +68,7 @@ int main(int argc, char **argv)
     std::string camera_param_path;
     std::string sub_image_topic;
 
+    // 【重要】字典和边长必须匹配实物；默认标定路径为旧工作目录，使用前需核对。
     nh1.param<int>("dictionary_id", dictionary_id, 10);//对应的字典6*6_250
     nh1.param<int>("aruco_id", aruco_id, 0);//id为0对应world中aruco_0
     nh1.param<float>("aruco_length", aruco_length, 0.1);
@@ -91,6 +111,7 @@ int main(int argc, char **argv)
     double p2 = config["p2"].as<double>();
     double k3 = config["k3"].as<double>();
 
+    // 【次要：历史试验】下面注释掉的内参没有执行，当前以 YAML 的参数为准。
     //double fx = 406.932130;
     //double fy = 402.678201;
     //double cx = 316.629381;
@@ -126,6 +147,7 @@ int main(int argc, char **argv)
         std::vector<int> markerIds;  //因为可能检测到多个aruco二维码，所以是vector类型。  
         std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCandidates;//角点、被拒绝的角点
         // ！！第1步
+        // 【核心步骤 1】得到每个码的 ID 和角点，二者按同一索引对应。
         cv::aruco::detectMarkers(gray, dictionary, markerCorners, markerIds, parameters, rejectedCandidates); // 检测图像中的ArUco标记，得到标记的ID和角点位置
 
         // 绘制检测结果
@@ -137,6 +159,7 @@ int main(int argc, char **argv)
             // 估计相机姿态
             std::vector<cv::Vec3d> rvecs, tvecs;
             // ！！第2步
+            // 【核心步骤 2】所有检测到的码统一按 aruco_length 估计，适用于相同实际尺寸。
             cv::aruco::estimatePoseSingleMarkers(markerCorners, aruco_length, cameraMatrix, distCoeffs, rvecs, tvecs); // 计算标记的位姿
 
             //tvecs是aruco二维码中心点在相机坐标系下的坐标 参考：https://blog.csdn.net/weixin_46450859/article/details/133799263  
@@ -151,6 +174,7 @@ int main(int argc, char **argv)
             //int aruco_id = 19;
 
             // 使用 std::find 在 vector 中查找值aruco_id
+            // 【核心步骤 3】只发布参数 aruco_id 对应的码；其他码仍可能被画在图像里。
             auto it = std::find(markerIds.begin(), markerIds.end(), aruco_id);
 
             // 检查是否找到
@@ -172,6 +196,7 @@ int main(int argc, char **argv)
             cv::Rodrigues(rotation_vector, rotation_matrix);
 
             // 旋转矩阵转为四元数
+            // 【重要：旧实现限制】该手算四元数公式含 4*w 分母，w 接近零时数值不稳定。
             double w = std::sqrt(1 + rotation_matrix.at<double>(0, 0) + rotation_matrix.at<double>(1, 1) + rotation_matrix.at<double>(2, 2)) / 2;
             double x = (rotation_matrix.at<double>(2, 1) - rotation_matrix.at<double>(1, 2)) / (4 * w);
             double y = (rotation_matrix.at<double>(0, 2) - rotation_matrix.at<double>(2, 0)) / (4 * w);
@@ -187,6 +212,7 @@ int main(int argc, char **argv)
             //aruco_det_pose.pose.orientation.z = rvecs[index][2];
             //aruco_det_pose.pose.orientation.w = 0;
 
+            // 【接口差异】此旧版本设置发布时间，但未填写 header.frame_id。
             aruco_det_pose.header.stamp = ros::Time::now();
 
             aruco_det_pose_pub.publish(aruco_det_pose);  
@@ -197,6 +223,7 @@ int main(int argc, char **argv)
             cv::imshow("ArUco Detection", frame);
         }
 
+        // 【次要：可视化】下面发布标注图并刷新窗口，不参与位姿求解。
         cv_image.image = frame;
         //cv_image.encoding = "mono8";  //灰度图这里注意用mono8
         //cv_image.encoding = "mono16";
@@ -208,6 +235,7 @@ int main(int argc, char **argv)
         cv::imshow("ArUco Detection", frame);
         cv::waitKey(1); // Important for imshow to update
         }
+        // 【重要】处理图像回调；无新图像时主循环可能重复检测旧 frame。
         ros::spinOnce();
         loop_rate.sleep();
     }

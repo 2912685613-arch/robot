@@ -2,6 +2,7 @@
 #define C_SIM_3D_CTRL_H
 
 #include <math.h>
+#include <string>
 
 #include "c_controller_group.h"
 #include "c_fuzzy_pid.h"
@@ -376,8 +377,14 @@ namespace CombineCtrl
 
         // 用于在外部设置控制模式
         void setControlMode(ControlMode mode);
-        void setFuzzyXYZEnabled(bool enabled) { fuzzy_xyz_enabled_ = enabled; }
-        void resetFuzzyXYZ();
+        void setFuzzyPIDEnabled(bool enabled) { fuzzy_pid_enabled_ = enabled; }
+        void setManualPIDActive(bool active) { manual_pid_active_ = active; }
+        void setHeaveInnerOnly(bool inner_only) { heave_inner_only_ = inner_only; }
+        void setXYZPIDLogEnabled(bool enabled) { log_xyz_pid_ = enabled; }
+        void resetManualPIDs();
+        void resetManualPIDHistory();
+        const std::string& getXYZPIDSnapshot() const { return xyz_pid_snapshot_; }
+        const ros::WallTime& getXYZPIDSnapshotTime() const { return xyz_pid_snapshot_time_; }
 
         /**
          * @brief      单环原来用的这个
@@ -429,8 +436,17 @@ namespace CombineCtrl
         C_VectoredThrustControl vec_ctrl;
 
     private:
-        bool fuzzy_xyz_enabled_ = false;
+        bool fuzzy_pid_enabled_ = false;
+        bool log_xyz_pid_ = false;
         ControllerGroup::FuzzyPID fuzzy_x_, fuzzy_y_, fuzzy_z_;
+        ControllerGroup::FuzzyPID fuzzy_yaw_, fuzzy_forward_, fuzzy_heave_position_, fuzzy_heave_velocity_;
+        bool manual_pid_active_ = false;
+        bool heave_inner_only_ = false;
+        float calculateManualPID(ControllerGroup::PID &base, ControllerGroup::FuzzyPID &fuzzy,
+                                 float error, const char *axis, bool depth = false);
+        float calculateHeave(bool inner_only);
+        std::string xyz_pid_snapshot_;
+        ros::WallTime xyz_pid_snapshot_time_;
         // 存储当前控制模式
         ControlMode current_mode_;
 

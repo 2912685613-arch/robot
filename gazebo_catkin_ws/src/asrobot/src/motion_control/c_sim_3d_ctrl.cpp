@@ -1,5 +1,6 @@
 #include "../../include/asrobot/c_sim_3d_ctrl.h"
 #include "asrobot/mc.h"
+#include <sstream>
 
 // #define pi 3.1415926535897932384626
 
@@ -1695,6 +1696,18 @@ namespace CombineCtrl
     {
         setControlMode(SINGLE_LOOP);
         initialize_all_PIDs();
+        // Z 误差通常 <1 m，分档比 XY 更细；积分限幅调小，防止积分顶住输出造成深度超调。
+        fuzzy_z_.setErrorBands(0.03f, 0.15f, 0.5f, 1.0f, 0.012f);
+        fuzzy_z_.setIntegralLimit(6.0f);
+        // 经典 Z PID 使用相同的误差累加限幅，便于比较两种控制模式。
+        vec_ctrl.mcDepthPID.i_limit = 6.0f;
+        // 仅 Z 启用积分分离：误差超过 10 cm 时保留积分，不继续累加。
+        fuzzy_z_.setIntegralSeparation(0.1f);
+        // 航向单位为度；速度内环单位为 m/s，分别使用独立误差尺度。
+        fuzzy_yaw_.setErrorBands(1.0f, 10.0f, 45.0f, 180.0f, 5.0f);
+        fuzzy_yaw_.setErrorPeriod(360.0f);
+        fuzzy_heave_position_.setErrorBands(0.03f, 0.15f, 0.5f, 1.0f, 0.012f);
+        fuzzy_heave_velocity_.setErrorBands(0.005f, 0.03f, 0.1f, 0.3f, 0.01f);
         // setControlMode(DUAL_LOOP);
         // setControlMode(SINGLE_LOOP);
     }
@@ -1704,11 +1717,75 @@ namespace CombineCtrl
         this->current_mode_ = mode;
     }
 
-    void C_Combine3DPidControl::resetFuzzyXYZ()
+    void C_Combine3DPidControl::resetManualPIDs()
     {
         fuzzy_x_.reset();
         fuzzy_y_.reset();
         fuzzy_z_.reset();
+        fuzzy_yaw_.reset();
+        fuzzy_forward_.reset();
+        fuzzy_heave_position_.reset();
+        fuzzy_heave_velocity_.reset();
+        vec_ctrl.mcXPID.pidReset();
+        vec_ctrl.mcYPID.pidReset();
+        vec_ctrl.mcDepthPID.pidReset();
+        vec_ctrl.mcYawPID.pidReset();
+        vec_ctrl.mcSpeedPID.pidReset();
+        vec_ctrl.mcDualLoop_Heave.reset();
+        xyz_pid_snapshot_.clear();
+        xyz_pid_snapshot_time_ = ros::WallTime();
+    }
+
+    void C_Combine3DPidControl::resetManualPIDHistory()
+    {
+        xyz_pid_snapshot_.clear();
+        fuzzy_x_.resetErrorHistory();
+        fuzzy_y_.resetErrorHistory();
+        fuzzy_z_.resetErrorHistory();
+        fuzzy_yaw_.resetErrorHistory();
+        vec_ctrl.mcYawPID.resetDerivativeHistory();
+        fuzzy_forward_.resetErrorHistory();
+        fuzzy_heave_position_.resetErrorHistory();
+        fuzzy_heave_velocity_.resetErrorHistory();
+    }
+
+    // 保留基础参数用于终端调参；模糊模式只更新独立控制器的实际增益。
+    float C_Combine3DPidControl::calculateManualPID(PID &base, FuzzyPID &fuzzy,
+                                                  float error, const char *axis, bool depth)
+    {
+        if (!manual_pid_active_)
+            return base.pidNewCalc(error);
+        const bool accumulate = !depth || std::fabs(error) <= fuzzy_z_.getIntegralSeparation();
+        const float output = fuzzy_pid_enabled_ ?
+            fuzzy.calculate(error, base.getKp(), base.getKi(), base.getKd()) :
+            base.pidNewCalcWithIntegral(error, accumulate, &base == &vec_ctrl.mcYawPID ? 360.0f : 0.0f);
+        ROS_INFO_STREAM("[MANUAL PID " << (fuzzy_pid_enabled_ ? "fuzzy" : "classic")
+            << "] axis=" << axis << " e=" << error
+            << " Kp=" << (fuzzy_pid_enabled_ ? fuzzy.getCurrentKp() : base.getKp())
+            << " Ki=" << (fuzzy_pid_enabled_ ? fuzzy.getCurrentKi() : base.getKi())
+            << " Kd=" << (fuzzy_pid_enabled_ ? fuzzy.getCurrentKd() : base.getKd())
+            << " output=" << output
+            << " I_term=" << (fuzzy_pid_enabled_ ? fuzzy.getIntegralTerm() : base.getIntegralTerm())
+            << " limit=" << (fuzzy_pid_enabled_ ? fuzzy.getIntegralLimit() : base.i_limit)
+            << " separation_error=" << (depth ? fuzzy_z_.getIntegralSeparation() : 0.0f)
+            << " accumulating=" << ((fuzzy_pid_enabled_ ? fuzzy.isIntegralAccumulating() : accumulate) ? "yes" : "no"));
+        return output;
+    }
+
+    // 手动双环：位置外环输出限制到原有的 ±0.08 m/s，速度内环输出控制力。
+    float C_Combine3DPidControl::calculateHeave(bool inner_only)
+    {
+        if (!manual_pid_active_)
+            return inner_only ? vec_ctrl.mcDualLoop_Heave.calculateInnerLoopOnly(exp_v_z_, cur_v_z_) :
+                vec_ctrl.mcDualLoop_Heave.calculate(exp_p_z_, cur_p_z_, cur_v_z_);
+        if (!inner_only)
+        {
+            const float velocity = calculateManualPID(vec_ctrl.mcDualLoop_Heave.outer_loop_pid_,
+                fuzzy_heave_position_, exp_p_z_ - cur_p_z_, "Z_position_outer");
+            exp_v_z_ = std::max(-0.08f, std::min(0.08f, velocity));
+        }
+        return calculateManualPID(vec_ctrl.mcDualLoop_Heave.inner_loop_pid_,
+            fuzzy_heave_velocity_, exp_v_z_ - cur_v_z_, "Z_velocity_inner");
     }
 
     void C_Combine3DPidControl::setDebugMode(ControlDebugMode mode, float debug_target)
@@ -1846,8 +1923,12 @@ namespace CombineCtrl
             // --- 只调试偏航 ---
             float target_yaw = debug_target_value_; // 使用固定的航向目标
             float yaw_error = target_yaw - cur_yaw_;
-            float desired_turning_torque = vec_ctrl.mcYawPID.pidNewCalc(yaw_error); // ---  控制量分配 ---
-            vec_ctrl.space3DControl(SHAPE_H,
+            if (manual_pid_active_) yaw_error = std::remainder(yaw_error, 360.0f);
+            float desired_turning_torque = calculateManualPID(vec_ctrl.mcYawPID, fuzzy_yaw_, yaw_error, "Yaw_deg"); // ---  控制量分配 ---
+            if (manual_pid_active_)
+                vec_ctrl.manualYawDepthControl(0, desired_turning_torque);
+            else
+                vec_ctrl.space3DControl(SHAPE_H,
                                     0,
                                     0,
                                     0,
@@ -1866,7 +1947,7 @@ namespace CombineCtrl
             // ---  深度误差 ---
             float exp_p_z_ = debug_target_value_; // 使用固定的航向目标
             float depth_error = exp_p_z_ - cur_p_z_;
-            float desired_up_force = vec_ctrl.mcDepthPID.pidNewCalc(depth_error);
+            float desired_up_force = calculateManualPID(vec_ctrl.mcDepthPID, fuzzy_z_, depth_error, "Z_m", true);
             float z_force_for_alloc = desired_up_force;
 
             vec_ctrl.space3DControl(SHAPE_H,
@@ -1888,12 +1969,16 @@ namespace CombineCtrl
             // --- 调试偏航 ---
             float target_yaw = debug_target_value_; // 使用固定的航向目标
             float yaw_error = target_yaw - cur_yaw_;
-            float desired_turning_torque = vec_ctrl.mcYawPID.pidNewCalc(yaw_error); // ---  控制量分配 ---
+            if (manual_pid_active_) yaw_error = std::remainder(yaw_error, 360.0f);
+            float desired_turning_torque = calculateManualPID(vec_ctrl.mcYawPID, fuzzy_yaw_, yaw_error, "Yaw_deg"); // ---  控制量分配 ---
                                                                                     // ---  深度误差 ---
             float depth_error = exp_p_z_ - cur_p_z_;
-            float desired_up_force = vec_ctrl.mcDepthPID.pidNewCalc(depth_error);
+            float desired_up_force = calculateManualPID(vec_ctrl.mcDepthPID, fuzzy_z_, depth_error, "Z_m", true);
             float z_force_for_alloc = desired_up_force;
-            vec_ctrl.space3DControl(SHAPE_H,
+            if (manual_pid_active_)
+                vec_ctrl.manualYawDepthControl(z_force_for_alloc, desired_turning_torque);
+            else
+                vec_ctrl.space3DControl(SHAPE_H,
                                     0,
                                     0,
                                     z_force_for_alloc,
@@ -1932,6 +2017,7 @@ namespace CombineCtrl
 
             // d. 计算【航向误差】，并处理环绕问题
             float yaw_error = target_yaw - cur_yaw_;
+            if (manual_pid_active_) yaw_error = std::remainder(yaw_error, 360.0f);
             // ... (处理 >180 和 < -180 的情况) -> 方向问题，让其以最小的角度转到期望的yaw...
             if (yaw_error > 180.0)
             {
@@ -1944,11 +2030,11 @@ namespace CombineCtrl
             // --- 2. PID决策 (两个控制器独立计算) ---
 
             // a. 前进控制器决策
-            float desired_forward_force = vec_ctrl.mcSpeedPID.pidNewCalc(distance_error);
+            float desired_forward_force = calculateManualPID(vec_ctrl.mcSpeedPID, fuzzy_forward_, distance_error, "Forward_m");
             // float desired_forward_force = 0;//调式转向时前进控制量为0
 
             // b. 航向控制器决策
-            float desired_turning_torque = vec_ctrl.mcYawPID.pidNewCalc(yaw_error);
+            float desired_turning_torque = calculateManualPID(vec_ctrl.mcYawPID, fuzzy_yaw_, yaw_error, "Yaw_deg");
 
             // --- 3. 智能协调策略 (让两个决策者“沟通”) ---
 
@@ -1974,7 +2060,7 @@ namespace CombineCtrl
 
             // ---  深度误差 ---
             float depth_error = exp_p_z_ - cur_p_z_;
-            float desired_up_force = vec_ctrl.mcDepthPID.pidNewCalc(depth_error);
+            float desired_up_force = calculateManualPID(vec_ctrl.mcDepthPID, fuzzy_z_, depth_error, "Z_m", true);
             float z_force_for_alloc = desired_up_force;
 
             // ---  控制量分配 ---
@@ -2014,8 +2100,12 @@ namespace CombineCtrl
             // --- 只调试偏航 ---
             float target_yaw = debug_target_value_; // 使用固定的航向目标
             float yaw_error = target_yaw - cur_yaw_;
-            float desired_turning_torque = vec_ctrl.mcYawPID.pidNewCalc(yaw_error); // ---  控制量分配 ---
-            vec_ctrl.space3DControl(SHAPE_H,
+            if (manual_pid_active_) yaw_error = std::remainder(yaw_error, 360.0f);
+            float desired_turning_torque = calculateManualPID(vec_ctrl.mcYawPID, fuzzy_yaw_, yaw_error, "Yaw_deg"); // ---  控制量分配 ---
+            if (manual_pid_active_)
+                vec_ctrl.manualYawDepthControl(0, desired_turning_torque);
+            else
+                vec_ctrl.space3DControl(SHAPE_H,
                                     0,
                                     0,
                                     0,
@@ -2034,7 +2124,7 @@ namespace CombineCtrl
             // ---  深度误差 ---
             float exp_p_z_ = debug_target_value_; // 使用固定的航向目标
             float depth_error = exp_p_z_ - cur_p_z_;
-            float desired_up_force = vec_ctrl.mcDepthPID.pidNewCalc(depth_error);
+            float desired_up_force = calculateManualPID(vec_ctrl.mcDepthPID, fuzzy_z_, depth_error, "Z_m", true);
             float z_force_for_alloc = desired_up_force;
 
             vec_ctrl.space3DControl(SHAPE_H,
@@ -2056,12 +2146,16 @@ namespace CombineCtrl
             // --- 调试偏航 ---
             float target_yaw = debug_target_value_; // 使用固定的航向目标
             float yaw_error = target_yaw - cur_yaw_;
-            float desired_turning_torque = vec_ctrl.mcYawPID.pidNewCalc(yaw_error); // ---  控制量分配 ---
+            if (manual_pid_active_) yaw_error = std::remainder(yaw_error, 360.0f);
+            float desired_turning_torque = calculateManualPID(vec_ctrl.mcYawPID, fuzzy_yaw_, yaw_error, "Yaw_deg"); // ---  控制量分配 ---
                                                                                     // ---  深度误差 ---
             float depth_error = exp_p_z_ - cur_p_z_;
-            float desired_up_force = vec_ctrl.mcDepthPID.pidNewCalc(depth_error);
+            float desired_up_force = calculateManualPID(vec_ctrl.mcDepthPID, fuzzy_z_, depth_error, "Z_m", true);
             float z_force_for_alloc = desired_up_force;
-            vec_ctrl.space3DControl(SHAPE_H,
+            if (manual_pid_active_)
+                vec_ctrl.manualYawDepthControl(z_force_for_alloc, desired_turning_torque);
+            else
+                vec_ctrl.space3DControl(SHAPE_H,
                                     0,
                                     0,
                                     z_force_for_alloc,
@@ -2100,6 +2194,7 @@ namespace CombineCtrl
 
             // d. 计算【航向误差】，并处理环绕问题
             float yaw_error = target_yaw - cur_yaw_;
+            if (manual_pid_active_) yaw_error = std::remainder(yaw_error, 360.0f);
             // ... (处理 >180 和 < -180 的情况) -> 方向问题，让其以最小的角度转到期望的yaw...
             if (yaw_error > 180.0)
             {
@@ -2112,11 +2207,11 @@ namespace CombineCtrl
             // --- 2. PID决策 (两个控制器独立计算) ---
 
             // a. 前进控制器决策
-            float desired_forward_force = vec_ctrl.mcSpeedPID.pidNewCalc(distance_error);
+            float desired_forward_force = calculateManualPID(vec_ctrl.mcSpeedPID, fuzzy_forward_, distance_error, "Forward_m");
             // float desired_forward_force = 0;//调式转向时前进控制量为0
 
             // b. 航向控制器决策
-            float desired_turning_torque = vec_ctrl.mcYawPID.pidNewCalc(yaw_error);
+            float desired_turning_torque = calculateManualPID(vec_ctrl.mcYawPID, fuzzy_yaw_, yaw_error, "Yaw_deg");
 
             // --- 3. 智能协调策略 (让两个决策者“沟通”) ---
 
@@ -2142,7 +2237,7 @@ namespace CombineCtrl
 
             // ---  深度误差 ---
             float depth_error = exp_p_z_ - cur_p_z_;
-            float desired_up_force = vec_ctrl.mcDepthPID.pidNewCalc(depth_error);
+            float desired_up_force = calculateManualPID(vec_ctrl.mcDepthPID, fuzzy_z_, depth_error, "Z_m", true);
             float z_force_for_alloc = desired_up_force;
 
             // ---  控制量分配 ---
@@ -2189,15 +2284,17 @@ namespace CombineCtrl
             float y_error = exp_p_y_ - cur_p_y_;
             float depth_error = exp_p_z_ - cur_p_z_;
 
-            float desired_world_x_force = fuzzy_xyz_enabled_ ?
-                fuzzy_x_.calculate(x_error, vec_ctrl.mcXPID.getKp(), vec_ctrl.mcXPID.getKi(), vec_ctrl.mcXPID.getKd()) :
-                vec_ctrl.mcXPID.pidNewCalc(x_error);
-            float desired_world_y_force = fuzzy_xyz_enabled_ ?
-                fuzzy_y_.calculate(y_error, vec_ctrl.mcYPID.getKp(), vec_ctrl.mcYPID.getKi(), vec_ctrl.mcYPID.getKd()) :
-                vec_ctrl.mcYPID.pidNewCalc(y_error);
-            float desired_z_force = fuzzy_xyz_enabled_ ?
-                fuzzy_z_.calculate(depth_error, vec_ctrl.mcDepthPID.getKp(), vec_ctrl.mcDepthPID.getKi(), vec_ctrl.mcDepthPID.getKd()) :
-                vec_ctrl.mcDepthPID.pidNewCalc(depth_error);
+            // XYZ 经典 Z PID 与模糊 Z PID 共用积分分离阈值。
+            // 大误差时保留已有积分输出，进入阈值后再继续累加。
+            const float z_integral_separation = fuzzy_z_.getIntegralSeparation();
+            const bool classic_z_accumulate = z_integral_separation == 0.0f ||
+                std::fabs(depth_error) <= z_integral_separation;
+
+            float desired_world_x_force = calculateManualPID(vec_ctrl.mcXPID, fuzzy_x_, x_error, "X_m");
+            float desired_world_y_force = calculateManualPID(vec_ctrl.mcYPID, fuzzy_y_, y_error, "Y_m");
+            float desired_z_force = manual_pid_active_ ?
+                calculateManualPID(vec_ctrl.mcDepthPID, fuzzy_z_, depth_error, "Z_m", true) :
+                vec_ctrl.mcDepthPID.pidNewCalcWithIntegral(depth_error, classic_z_accumulate);
 
             // =================================================================
             // 步骤 2: 【关键】将世界坐标系力旋转到机器人坐标系
@@ -2210,6 +2307,49 @@ namespace CombineCtrl
             // 应用旋转矩阵的逆（从世界系到机器人系）
             float desired_robot_x_force = desired_world_x_force * cos_yaw + desired_world_y_force * sin_yaw;
             float desired_robot_y_force = -desired_world_x_force * sin_yaw + desired_world_y_force * cos_yaw;
+
+            if (log_xyz_pid_)
+            {
+                std::ostringstream snapshot;
+                snapshot << "[XYZ PID " << (fuzzy_pid_enabled_ ? "fuzzy" : "classic") << "]"
+                    << "\n  X: target=" << exp_p_x_ << " actual=" << cur_p_x_ << " e=" << x_error
+                    << " Kp=" << (fuzzy_pid_enabled_ ? fuzzy_x_.getCurrentKp() : vec_ctrl.mcXPID.getKp())
+                    << " Ki=" << (fuzzy_pid_enabled_ ? fuzzy_x_.getCurrentKi() : vec_ctrl.mcXPID.getKi())
+                    << " Kd=" << (fuzzy_pid_enabled_ ? fuzzy_x_.getCurrentKd() : vec_ctrl.mcXPID.getKd())
+                    << " force_world=" << desired_world_x_force
+                    << "\n  Y: target=" << exp_p_y_ << " actual=" << cur_p_y_ << " e=" << y_error
+                    << " Kp=" << (fuzzy_pid_enabled_ ? fuzzy_y_.getCurrentKp() : vec_ctrl.mcYPID.getKp())
+                    << " Ki=" << (fuzzy_pid_enabled_ ? fuzzy_y_.getCurrentKi() : vec_ctrl.mcYPID.getKi())
+                    << " Kd=" << (fuzzy_pid_enabled_ ? fuzzy_y_.getCurrentKd() : vec_ctrl.mcYPID.getKd())
+                    << " force_world=" << desired_world_y_force
+                    << "\n  Z: target=" << exp_p_z_ << " actual=" << cur_p_z_ << " e=" << depth_error
+                    << " Kp=" << (fuzzy_pid_enabled_ ? fuzzy_z_.getCurrentKp() : vec_ctrl.mcDepthPID.getKp())
+                    << " Ki=" << (fuzzy_pid_enabled_ ? fuzzy_z_.getCurrentKi() : vec_ctrl.mcDepthPID.getKi())
+                    << " Kd=" << (fuzzy_pid_enabled_ ? fuzzy_z_.getCurrentKd() : vec_ctrl.mcDepthPID.getKd())
+                    << " force_world=" << desired_z_force
+                    << "\n  force_body: X=" << desired_robot_x_force << " Y=" << desired_robot_y_force;
+                if (fuzzy_pid_enabled_)
+                {
+                    snapshot << "\n  delta_abs_error_per_update: X=" << fuzzy_x_.getLastErrorChange()
+                        << " Y=" << fuzzy_y_.getLastErrorChange()
+                        << " Z=" << fuzzy_z_.getLastErrorChange();
+                    snapshot << "\n  Z_integral: sum=" << fuzzy_z_.getIntegralSum()
+                        << " limit=" << fuzzy_z_.getIntegralLimit()
+                        << " I_term=" << fuzzy_z_.getIntegralTerm()
+                        << " separation_error=" << fuzzy_z_.getIntegralSeparation()
+                        << " accumulating=" << (fuzzy_z_.isIntegralAccumulating() ? "yes" : "no");
+                }
+                else
+                {
+                    snapshot << "\n  Z_integral: sum=" << vec_ctrl.mcDepthPID.getIntegralSum()
+                        << " limit=" << vec_ctrl.mcDepthPID.i_limit
+                        << " I_term=" << vec_ctrl.mcDepthPID.getIntegralTerm()
+                        << " separation_error=" << z_integral_separation
+                        << " accumulating=" << (classic_z_accumulate ? "yes" : "no");
+                }
+                xyz_pid_snapshot_ = snapshot.str();
+                xyz_pid_snapshot_time_ = ros::WallTime::now();
+            }
 
             // =================== 在这里添加调试打印 ===================
             std::cout << "DEBUG: Target Force -> X: " << desired_robot_x_force
@@ -2256,7 +2396,7 @@ namespace CombineCtrl
         case NAV_NORMAL:
         {
 
-            bool test_inner_loop_only = false; // 用来内环调参
+            bool test_inner_loop_only = manual_pid_active_ && heave_inner_only_; // 用来内环调参
 
             if (test_inner_loop_only)
             {
@@ -2264,17 +2404,14 @@ namespace CombineCtrl
                 float desired_velocity_test = -0.15f;
                 exp_v_z_ = desired_velocity_test;
 
-                float z_force_for_alloc = vec_ctrl.mcDualLoop_Heave.calculateInnerLoopOnly(
-                    desired_velocity_test, // 手动给期望速度
-                    cur_v_z_               // 传入当前速度
-                );
+                float z_force_for_alloc = calculateHeave(true);
 
                 vec_ctrl.space3DControl(SHAPE_X, 0, 0, z_force_for_alloc, 0);
 
                 printf("[InnerLoop Z] Tgt: %.2f | Cur: %.2f | Err: %.2f | Out: %.2f\n",
                        desired_velocity_test,
                        cur_v_z_,
-                       vec_ctrl.mcDualLoop_Heave.getInnerLoopError(),
+                       exp_v_z_ - cur_v_z_,
                        z_force_for_alloc);
             }
             else
@@ -2284,17 +2421,15 @@ namespace CombineCtrl
                 const float VELOCITY_FILTER_ALPHA = 0.2; // 滤波系数，可以调整 (0.1-0.8)
                 // this->filtered_cur_v_z_ = cur_v_z_ * VELOCITY_FILTER_ALPHA + (1 - VELOCITY_FILTER_ALPHA) * this->filtered_cur_v_z_;
                 //  --- 正常进行双环计算 ---
-                float z_force_for_alloc = vec_ctrl.mcDualLoop_Heave.calculate(
-                    exp_p_z_,
-                    cur_p_z_,
-                    cur_v_z_);
+                float z_force_for_alloc = calculateHeave(false);
 
-                exp_v_z_ = vec_ctrl.mcDualLoop_Heave.getOuterLoopOutput();
+                if (!manual_pid_active_)
+                    exp_v_z_ = vec_ctrl.mcDualLoop_Heave.getOuterLoopOutput();
 
                 float x_error = exp_p_x_ - cur_p_x_;
                 float y_error = exp_p_y_ - cur_p_y_;
-                float desired_world_x_force = vec_ctrl.mcXPID.pidNewCalc(x_error);
-                float desired_world_y_force = vec_ctrl.mcYPID.pidNewCalc(y_error);
+                float desired_world_x_force = calculateManualPID(vec_ctrl.mcXPID, fuzzy_x_, x_error, "X_m");
+                float desired_world_y_force = calculateManualPID(vec_ctrl.mcYPID, fuzzy_y_, y_error, "Y_m");
                 float cur_yaw_rad = cur_yaw_ * M_PI / 180.0;
                 float cos_yaw = cos(cur_yaw_rad);
                 float sin_yaw = sin(cur_yaw_rad);
@@ -2336,9 +2471,9 @@ namespace CombineCtrl
             //         float y_error = exp_p_y_ - cur_p_y_;
             //         float depth_error = exp_p_z_ - cur_p_z_;
 
-            //         float desired_world_x_force = vec_ctrl.mcXPID.pidNewCalc(x_error);
-            //         float desired_world_y_force = vec_ctrl.mcYPID.pidNewCalc(y_error);
-            //         float desired_z_force = vec_ctrl.mcDepthPID.pidNewCalc(depth_error);
+            //         float desired_world_x_force = calculateManualPID(vec_ctrl.mcXPID, fuzzy_x_, x_error, "X_m");
+            //         float desired_world_y_force = calculateManualPID(vec_ctrl.mcYPID, fuzzy_y_, y_error, "Y_m");
+            //         float desired_z_force = calculateManualPID(vec_ctrl.mcDepthPID, fuzzy_z_, depth_error, "Z_m", true);
 
             //         // =================================================================
             //         // 步骤 2: 【关键】将世界坐标系力旋转到机器人坐标系
@@ -2399,6 +2534,9 @@ namespace CombineCtrl
     // =================================================================
     void C_Combine3DPidControl::printDebugInfo()
     {
+        // 手动双环由 calculateManualPID 输出实际参数，避免打印未更新的旧双环缓存。
+        if (manual_pid_active_ && current_mode_ == DUAL_LOOP)
+            return;
         if (current_mode_ == SINGLE_LOOP)
         {
             cout << "************************** SINGLE_LOOP DEBUG ******************************" << endl;

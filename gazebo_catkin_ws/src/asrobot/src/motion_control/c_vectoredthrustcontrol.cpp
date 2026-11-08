@@ -1686,7 +1686,8 @@ namespace VectoredThrustControl
     }
 
     // hcy:H shape with leg angle,（重要）设置H型时动态角度
-    void C_VectoredThrustControl::yawLocomMode_FB(float _leg1_angle, float _leg2_angle, float _leg3_angle, float _leg4_angle)
+    void C_VectoredThrustControl::yawLocomMode_FB(float _leg1_angle, float _leg2_angle, float _leg3_angle, float _leg4_angle,
+                                                bool manual_yaw)
     {
         if (_leg1_angle > 30)
         {
@@ -1729,9 +1730,25 @@ namespace VectoredThrustControl
         // Leg3.set_angle(40, 0, _leg3_angle + 10, 500);
         // Leg4.set_angle(40, 0, _leg4_angle + 10, 500);
         Leg1.set_angle(40, 0, _leg1_angle, 2000);
-        Leg2.set_angle(40, 0, _leg2_angle, 2000);
+        Leg2.set_angle(manual_yaw ? -40 : 40, 0, _leg2_angle, 2000);
         Leg3.set_angle(40, 0, _leg3_angle, 2000);
-        Leg4.set_angle(40, 0, _leg4_angle, 2000);
+        Leg4.set_angle(manual_yaw ? -40 : 40, 0, _leg4_angle, 2000);
+    }
+
+    // 1/3 号提供正偏航，2/4 号提供负偏航；不改变自动控制的原 H 型姿态。
+    void C_VectoredThrustControl::manualYawDepthControl(float depth_force, float yaw_force)
+    {
+        float forces[4], angles[4];
+        calcSprayForces_Shape_H_2(0, depth_force, yaw_force,
+            &forces[0], &forces[1], &forces[2], &forces[3],
+            &angles[0], &angles[1], &angles[2], &angles[3]);
+        yawLocomMode_FB(angles[0], angles[1], angles[2], angles[3], true);
+        thrusterforce2speed_H(forces[0], forces[1], forces[2], forces[3]);
+        thrust_force_1 = forces[0]; thrust_force_2 = forces[1];
+        thrust_force_3 = forces[2]; thrust_force_4 = forces[3];
+        ROS_INFO_STREAM("[MANUAL YAW ALLOCATION] H_deg=40,-40,40,-40 yaw_request=" << yaw_force
+            << " depth_request=" << depth_force << " force=" << forces[0] << "," << forces[1]
+            << "," << forces[2] << "," << forces[3]);
     }
 
     // hcy:对电机进行针对性的力解算 H型

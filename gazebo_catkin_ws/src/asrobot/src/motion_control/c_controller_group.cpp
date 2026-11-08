@@ -40,6 +40,7 @@ namespace ControllerGroup {
 
     void PID::initPID(float kp, float ki, float kd)
     {
+        has_error_history_ = false;
         fCurError = 0;
         fLastError = 0;
         fPreError = 0;
@@ -110,15 +111,25 @@ namespace ControllerGroup {
     */
     float PID::pidNewCalc(float fError)
     {
+        return pidNewCalcWithIntegral(fError, true);
+    }
+
+    float PID::pidNewCalcWithIntegral(float fError, bool accumulate, float error_period)
+    {
         float speed1_out;
 
-        fError_i += fError;
+        if (accumulate)
+            fError_i += fError;
         if (fError_i > i_limit)
             fError_i = i_limit;
         else if (fError_i < -i_limit)
             fError_i = -i_limit;
 
         fError_d = fError - fLastError;
+        // 航向误差跨越 ±180° 时使用周期差，首次计算不产生微分突跳。
+        if (error_period > 0.0f)
+            fError_d = has_error_history_ ? std::remainder(fError_d, error_period) : 0.0f;
+        has_error_history_ = true;
         fLastError = fError;
 
         fLastP = fP;
@@ -195,6 +206,7 @@ namespace ControllerGroup {
     // 如果没有，这里的reset可以手动清除I项和历史误差
     void PID::pidReset()
     {
+        has_error_history_ = false;
         this->fError_i = 0.0f;
         this->fError_d = 0.0f;
         this->fPreError = 0.0f;

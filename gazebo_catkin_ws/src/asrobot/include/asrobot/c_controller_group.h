@@ -34,13 +34,19 @@ public:
     void setKdPara(float Kd);
     float pidCalc(float fError);
     float pidNewCalc(float fError);
+    // 暂停积分累加时保留已有积分输出，比例、微分及平滑仍正常更新。
+    float pidNewCalcWithIntegral(float fError, bool accumulate, float error_period = 0.0f);
+    void resetDerivativeHistory() { has_error_history_ = false; }
     float pidNewCalc(float expect, float real);
+    float getIntegralSum() const { return fError_i; }
+    float getIntegralTerm() const { return fI; }
     void pidReset();
 
     bool enable;
     float i_limit;
 
 private:
+    bool has_error_history_ = false;
     float fKp, fKi, fKd;
     float fP, fI, fD;
     float fLastP, fLastI, fLastD;

@@ -103,9 +103,14 @@ world: Gazebo 世界；model: 模型加载
 controllers: 关节控制器（不是命令输入窗口）
 robot_control: 控制节点日志（不是命令输入窗口）
 command: 键盘命令输入，出现 please input cmd! 后输入：
+  fuzzypid on  # 所有手动 PID 使用模糊增益（默认开启）
+  fuzzypid off # 所有手动 PID 使用经典固定增益
   xyz 1 1 -1    # 目标位置，单位 m
   yaw 90       # 航向控制
-  pz -1        # 深度控制
+  dep -1       # 单环深度控制
+  depyaw -1 90 # 深度与航向组合控制
+  pz -1        # 深度双环控制
+  vz           # 速度内环调试，期望速度 -0.15 m/s
   st           # 停止
 
 默认使用限速、无阴影世界，关闭本次任务不需要的 ArUco 节点。

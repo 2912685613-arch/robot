@@ -48,7 +48,7 @@ class SingleWaterTests(unittest.TestCase):
                     self.assertIn(plugin.findtext("jointName"), joints)
                     self.assertIn(plugin.findtext("linkName"), links)
 
-    def thrust_axes(self, tilt_deg):
+    def thrust_geometry(self, tilt_deg, horizontal_deg=(0, 0, 0, 0)):
         model = self.models["gazebo_robot1"]
         joints = {j.find("child").get("link"): j for j in model.findall("joint")}
         scale = self.calibration["joint_command_scale"]
@@ -57,7 +57,7 @@ class SingleWaterTests(unittest.TestCase):
         self.assertEqual(len(offset), 12)
         angles = {}
         for i in range(4):
-            controller = [0, -2 if i == 0 else 0, -14 + tilt_deg]
+            controller = [horizontal_deg[i], -2 if i == 0 else 0, -14 + tilt_deg]
             for k, name in enumerate(("H", "M", "V")):
                 channel = 3 * i + k
                 angles[name + str(i + 1)] = math.radians(
@@ -66,22 +66,42 @@ class SingleWaterTests(unittest.TestCase):
 
         def orientation(link):
             if link not in joints:
-                return np.eye(3)
+                return np.eye(4)
             joint = joints[link]
             r, p, y = map(float, joint.find("origin").get("rpy", "0 0 0").split())
             axis = list(map(float, joint.find("axis").get("xyz").split()))
-            return (orientation(joint.find("parent").get("link"))
-                    @ rotation([0, 0, 1], y)
+            transform = np.eye(4)
+            transform[:3, :3] = (rotation([0, 0, 1], y)
                     @ rotation([0, 1, 0], p)
                     @ rotation([1, 0, 0], r)
                     @ rotation(axis, angles.get(joint.get("name"), 0)))
+            transform[:3, 3] = list(map(float, joint.find("origin").get("xyz", "0 0 0").split()))
+            return orientation(joint.find("parent").get("link")) @ transform
 
-        axes = []
+        axes, positions = [], []
         for i in range(4):
             link = "gazebo_robot1/thruster_%d" % i
             axis = list(map(float, joints[link].find("axis").get("xyz").split()))
-            axes.append(orientation(link) @ axis)
-        return axes
+            pose = orientation(link)
+            axes.append(pose[:3, :3] @ axis)
+            positions.append(pose[:3, 3])
+        return positions, axes
+
+    def thrust_axes(self, tilt_deg):
+        return self.thrust_geometry(tilt_deg)[1]
+
+    def test_manual_yaw_has_opposing_moments(self):
+        # 校验 CAD 几何与关节校准后的真实力臂，而非只校验分配公式的符号。
+        for tilt in (-10, 0, 10):
+            positions, axes = self.thrust_geometry(tilt, (40, -40, 40, -40))
+            moments = [np.cross(p, a)[2] for p, a in zip(positions, axes)]
+            for i, moment in enumerate(moments):
+                self.assertGreater(moment * (1 if i in (0, 2) else -1), 0.03)
+            for speeds, sign in [((55, 45, 55, 45), 1), ((45, 55, 45, 55), -1)]:
+                torque = sum(m * 0.00031 * u * u for m, u in zip(moments, speeds))
+                self.assertGreater(sign * torque, 0.01)
+            neutral = sum(m * 0.00031 * 50 * 50 for m in moments)
+            self.assertLess(abs(neutral), 0.002)
 
     def test_neutral_thrusters_are_horizontal(self):
         for axis in self.thrust_axes(0):

@@ -1,3 +1,11 @@
+/**
+ * @file aruco_det.cpp
+ * @brief 【主流程／重要】大小双标记检测节点，当前由 CMakeLists.txt 编译、aruco_det.launch 启动。
+ * 数据流：底部相机 Image -> 识别 ID/角点 -> 估计标记相对相机的位姿 -> /aruco/pose。
+ * 必须理解：相机标定、标记实际边长、目标切换、位姿计算和发布。
+ * 次要辅助：日志、画框/画坐标轴、imshow 窗口、aruco_det_image 可视化输出。
+ * “次要”仅指阅读优先级；图像话题可能被其他工具订阅，不代表可以直接删除。
+ */
 #include "ros/ros.h"
 #include "sensor_msgs/Image.h"
 #include "cv_bridge/cv_bridge.h"
@@ -17,8 +25,15 @@
 #include <vector>
 #include <algorithm>
 
+// 【重要：共享数据】图像回调保存最新一帧，主循环读取；spinOnce 在本线程处理回调。
 cv::Mat frame; // Global frame variable
 
+/**
+ * @brief 【重要】接收相机图像，转成 OpenCV BGR8 格式，复制到全局 frame。
+ * @param msg ROS 相机图像；转换失败时记录错误，保留此前的 frame。
+ * @return 无；仅更新图像缓存，不在回调里执行检测，也不发布位姿。
+ * 注意：没有新图像时，主循环仍可能重复处理旧帧。
+ */
 void cam_imageCallback(const sensor_msgs::ImageConstPtr &msg)
 {
     try
@@ -34,12 +49,19 @@ void cam_imageCallback(const sensor_msgs::ImageConstPtr &msg)
     }
 }
 
+/**
+ * @brief 【核心入口】配置 ROS、加载标定，然后以 10 Hz 执行检测、切换目标和发布。
+ * @param argc/argv ROS 命令行参数，可用于覆盖私有参数和重映射话题。
+ * @return 相机配置加载异常时返回 1，正常退出返回 0。
+ * 阅读顺序：参数 -> 相机矩阵 -> 大小码状态机 -> 目标位姿 -> ROS 发布。
+ */
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "aruco_det_node");
     ros::NodeHandle n;
     ros::NodeHandle nh1("~"); // Private NodeHandle for parameters
 
+    // 【重要】私有参数属于当前节点；字典须匹配图案，边长须匹配实物，否则识别或距离会错。
     // --- Parameters for ArUco detection ---
     int dictionary_id;
     std::string camera_param_path;
@@ -71,10 +93,12 @@ int main(int argc, char **argv)
     nh1.param<float>("switch_depth_threshold_to_outer", switch_depth_threshold_to_outer, 0.4f);  // e.g., if inner is further than 0.25m
     nh1.param<int>("inner_marker_lost_threshold_frames", inner_marker_lost_threshold_frames, 100); // e.g., 10 frames
 
+    // 【配置注意】默认路径属于旧工作目录，实际使用需通过参数指向本机存在的 YAML。
     nh1.param<std::string>("camera_param_path", camera_param_path, "/home/jll/gazebo_catkin_ws/src/asrobot/config/camera_gazebo.yaml");
     nh1.param<std::string>("sub_image_topic", sub_image_topic, "/gazebo_robot1/camera_bottom/camera_bottom/image_raw");
     nh1.param<std::string>("camera_frame_id", camera_frame_id, "camera_link"); // Default camera frame
 
+    // 【次要：诊断】启动时打印配置，便于核对；不参与位姿计算。
     ROS_INFO("--- ArUco Detection Parameters ---");
     ROS_INFO("Dictionary ID: %d", dictionary_id);
     ROS_INFO("Outer ArUco ID: %d, Length: %.3f m", aruco_id_outer, aruco_length_outer);
@@ -86,6 +110,7 @@ int main(int argc, char **argv)
     ROS_INFO("Camera Frame ID for Pose: %s", camera_frame_id.c_str());
     ROS_INFO("---------------------------------");
 
+    // 【接口】图像输出供观察；/aruco/pose 是下游 aruco_posture 使用的核心输出。
     ros::Publisher aruco_det_image_pub = n.advertise<sensor_msgs::Image>("aruco_det_image", 10);
     ros::Subscriber cam_sub = n.subscribe(sub_image_topic, 1, cam_imageCallback);
     ros::Publisher aruco_det_pose_pub = n.advertise<geometry_msgs::PoseStamped>("/aruco/pose", 10);
@@ -95,6 +120,7 @@ int main(int argc, char **argv)
     cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(dictionary_id);
     cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
 
+    // 【重要：标定】fx/fy 为焦距参数，x0/y0 为主点；畸变参数用于修正镜头成像误差。
     YAML::Node config;
     try
     {
@@ -121,6 +147,7 @@ int main(int argc, char **argv)
                             0, 0, 1);
     cv::Mat distCoeffs = (cv::Mat_<double>(5, 1) << k1, k2, p1, p2, k3);
 
+    // 【重要：状态】current_target_id/length 必须配套切换，边长参与米制距离估算。
     // --- State variables for target switching ---
     int current_target_id = aruco_id_outer; // Initial target
     float current_target_length = aruco_length_outer;
@@ -140,12 +167,15 @@ int main(int argc, char **argv)
 
             std::vector<int> markerIds;
             std::vector<std::vector<cv::Point2f>> markerCorners, rejectedCandidates;
+            // 【核心步骤 1】markerIds 与 markerCorners 按索引一一对应；此时还没有米制位姿。
             cv::aruco::detectMarkers(gray, dictionary, markerCorners, markerIds, parameters, rejectedCandidates);
 
             if (markerIds.size() > 0)
             {
+                // 【次要：可视化】只往显示图像上画框，后续位姿使用之前提取的角点。
                 cv::aruco::drawDetectedMarkers(current_frame, markerCorners, markerIds);
 
+                // 【核心步骤 2】分别按大小码的实际边长估计 Z，用来决定当前跟踪哪一个。
                 // --- Information gathering for both markers (if present)-获取当前码 ---
                 bool outer_marker_visible_this_frame = false;
                 double z_distance_to_outer = -1.0; // Invalid initial value
@@ -179,6 +209,10 @@ int main(int argc, char **argv)
                     }
                 }
 
+                // 【核心步骤 3】大码近于 0.5 m 且小码可见时转小码；小码远于 0.4 m 或丢失过久时尝试转大码。
+                // 注意：这里比较相机 Z 分量，并非三维欧氏距离。
+                // 当前默认阈值在 0.4～0.5 m 重叠，两个码同时可见时可能来回切换。
+                // lost_count 统计处理循环次数；没有检查图像时间戳，未必对应不同的相机帧。
                 // --- Dual Switching Logic-切换逻辑 ---
                 if (current_target_id == aruco_id_outer)
                 {
@@ -241,6 +275,7 @@ int main(int argc, char **argv)
                     }
                 }
 
+                // 【核心步骤 4】只发布当前选中 ID 的位姿；看到其他码并不等于当前目标有效。
                 // --- Process the current_target_id ---
                 auto it_target = std::find(markerIds.begin(), markerIds.end(), current_target_id);
                 if (it_target != markerIds.end())
@@ -255,8 +290,10 @@ int main(int argc, char **argv)
                         cv::Vec3d rvec_target = rvec_target_vec[0];
                         cv::Vec3d tvec_target = tvec_target_vec[0];
 
+                        // 【次要：可视化】画坐标轴，不改变估算得到的 rvec/tvec。
                         cv::aruco::drawAxis(current_frame, cameraMatrix, distCoeffs, rvec_target, tvec_target, current_target_length * 0.5f);
 
+                        // 【重要：输出约定】位置为标记原点在相机系中的坐标（米），姿态为标记系到相机系的旋转。
                         geometry_msgs::PoseStamped aruco_det_pose;
                         aruco_det_pose.header.stamp = ros::Time::now();
                         aruco_det_pose.header.frame_id = camera_frame_id; // Use parameterized frame_id
@@ -265,6 +302,7 @@ int main(int argc, char **argv)
                         aruco_det_pose.pose.position.y = tvec_target[1];
                         aruco_det_pose.pose.position.z = tvec_target[2];
 
+                        // 【重要】rvec 是旋转向量，不能直接填入四元数；先 Rodrigues 转矩阵，再转单位四元数。
                         cv::Mat rotation_matrix;
                         cv::Rodrigues(rvec_target, rotation_matrix);
 
@@ -295,6 +333,7 @@ int main(int argc, char **argv)
                     // Consider if we should default to outer if inner is lost and outer is visible (already handled by switching logic)
                 }
             }
+            // 【重要：失效行为】没有有效目标时不发布新位姿；没有额外发布“丢失”状态。
             else // No markers detected at all
             {
                 ROS_WARN_THROTTLE(1.0, "No ArUco markers detected in the frame.");
@@ -310,6 +349,7 @@ int main(int argc, char **argv)
                     }
                 }
             }
+            // 【次要：调试显示】窗口和标注图像便于观察检测效果，计算位姿本身不依赖窗口。
             cv::imshow("ArUco Detection", current_frame);
             cv::waitKey(1);
 
@@ -321,6 +361,7 @@ int main(int argc, char **argv)
             aruco_det_image_pub.publish(cv_image.toImageMsg());
         }
 
+        // 【重要：调度】处理订阅回调，让下一轮能读取更新的 frame；sleep 限制循环频率。
         ros::spinOnce();
         loop_rate.sleep();
     }

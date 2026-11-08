@@ -217,7 +217,10 @@ public:  // 常用函数声明
 //驱动方式新版本
 
     void thrusterforce2speed(float _force1, float _force2, float _force3, float _force4);
-    void yawLocomMode_FB(float _leg1_angle, float _leg2_angle, float _leg3_angle, float _leg4_angle);
+    void yawLocomMode_FB(float _leg1_angle, float _leg2_angle, float _leg3_angle, float _leg4_angle,
+                         bool manual_yaw = false);
+    // 手动航向/深度组合：两组腿使用相反的水平转角，形成双向偏航力矩。
+    void manualYawDepthControl(float depth_force, float yaw_force);
     void yawLocomMode_LR(float _leg1_angle, float _leg2_angle, float _leg3_angle, float _leg4_angle);
     void yawLocomMode_X(float _leg1_angle, float _leg2_angle, float _leg3_angle, float _leg4_angle);
     void yawLocomMode_G(float _leg1_angle, float _leg2_angle, float _leg3_angle, float _leg4_angle);

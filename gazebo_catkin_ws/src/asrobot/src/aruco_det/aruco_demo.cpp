@@ -1,4 +1,12 @@
 /**
+ * @file aruco_demo.cpp
+ * @brief 【参考／次要文件】无人机视觉对准与降落示例，当前未在 CMakeLists.txt 中编译。
+ * 与当前机器人检测主链路独立；仅学习检测和坐标转换时，可以整文件暂时跳过。
+ * 包含 MAVROS 状态/位姿回调、相机到机体变换、位置设定值发布及降落状态机。
+ * 注意：这里使用 geometry_aruco_msgs/mavros_aruco_msgs 类型；接入当前使用
+ * geometry_msgs::PoseStamped 的 /aruco/pose 前，应核对 ROS 消息类型兼容性。
+ */
+/**
  * @file offb_node.cpp
  * @brief Offboard control example node, written with MAVROS version 0.19.x, PX4 Pro Flight
  * STcak and tested in Gazebo SITL
@@ -49,10 +57,20 @@ Quaterniond q_wb,q_ca;//四元数
 
 //double aruco_position_ENU[3]={0,0,0}; //aruco二维码在东北天世界系下的位置
 
+/**
+ * @brief 【示例必需】缓存飞控连接、解锁和模式状态，供 main 判断是否请求切模式/解锁。
+ * @param aruco_msg mavros/state 的状态消息（名称虽有 aruco，内容是飞控状态）。
+ * @return 无；更新全局 current_state。
+ */
 void state_cb(const mavros_aruco_msgs::State::ConstPtr& aruco_msg){
     current_state = *aruco_msg;
 }
 
+/**
+ * @brief 【示例必需】根据无人机本地位姿构建机体系到世界系的变换 Twb。
+ * @param aruco_msg /mavros/local_position/pose 的位置和四元数。
+ * @return 无；更新 t_wb、q_wb 和 Twb，供到点判断和世界系目标计算使用。
+ */
 void pos_cb(const geometry_aruco_msgs::PoseStamped::ConstPtr &aruco_msg)
         {
             //drone_position_ENU[0] = aruco_msg->pose.position.x;
@@ -71,6 +89,12 @@ void pos_cb(const geometry_aruco_msgs::PoseStamped::ConstPtr &aruco_msg)
             Twb.translation() = t_wb;
         }
 
+/**
+ * @brief 【示例必需】缓存标记相对相机的位姿，构建标记系到相机系的变换 Tca。
+ * @param aruco_msg /aruco/pose，需与该示例声明的消息类型兼容。
+ * @return 无；更新 t_ca、q_ca 和 Tca。
+ * 注意：本示例未记录有效标志和接收时间，不能通过缓存值判断检测是否仍有效。
+ */
 void aruco_pos_cb(const geometry_aruco_msgs::PoseStamped::ConstPtr &aruco_msg)
         {
             //aruco_position_cam[0] = aruco_msg->pose.position.x;
@@ -90,6 +114,13 @@ void aruco_pos_cb(const geometry_aruco_msgs::PoseStamped::ConstPtr &aruco_msg)
 
 
 
+/**
+ * @brief 【参考入口】等待飞控、预发位置目标、请求 OFFBOARD/解锁，并按状态机对准和降落。
+ * @param argc/argv ROS 启动参数；auto_arm_offboard 控制自动切模式/解锁分支。
+ * @return 正常退出返回 0。
+ * 状态：0 初始高度目标 -> 1 飞往搜索点 -> 2 对准 -> 3 逐步下降 -> 4 近地对准 -> 5 请求降落。
+ * 这是无人机控制参考，不是当前 aruco_det.launch 的运行路径。
+ */
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "offb_node");
@@ -111,6 +142,7 @@ int main(int argc, char **argv)
 
 
 
+    // 【次要：未使用接口】local_pos_pub 创建后未 publish；实际使用下面的 raw/local 发布器。
     ros::Publisher local_pos_pub = nh.advertise<geometry_aruco_msgs::PoseStamped>
             ("mavros/setpoint_position/local", 10);
     ros::Publisher setpoint_raw_local_pub = nh.advertise<mavros_aruco_msgs::PositionTarget>("/mavros/setpoint_raw/local", 10);
@@ -121,6 +153,7 @@ int main(int argc, char **argv)
     ros::ServiceClient set_mode_client = nh.serviceClient<mavros_aruco_msgs::SetMode>
             ("mavros/set_mode");
 
+    // 【示例核心】Tbc 表示固定安装关系；Twb*Tbc*Tca 将标记变换到世界坐标系。
     // 相机系到机体系的变换
     t_bc <<  0, 0, 0;
     rotation_matrix_bc << 0, -1, 0,
@@ -134,6 +167,7 @@ int main(int argc, char **argv)
     //the setpoint publishing rate MUST be faster than 2Hz
     ros::Rate rate(20.0);
 
+    // 【示例启动流程】持续处理回调，直到收到飞控 connected 状态。
     // wait for FCU connection
     while(ros::ok() && !current_state.connected){
         ros::spinOnce();
@@ -148,6 +182,7 @@ int main(int argc, char **argv)
     pos_setpoint.position.z = 2;
     pos_setpoint.yaw = 0;
 
+    // 【示例启动流程】先连续发布初始设定值，再进入自动切模式和控制阶段。
     //send a few setpoints before starting
     for(int i = 100; ros::ok() && i > 0; --i){
         setpoint_raw_local_pub.publish(pos_setpoint);
@@ -166,12 +201,14 @@ int main(int argc, char **argv)
 
     int offboard_flag = 0;//防止切land降落之后又去解锁切offboard
     int land_flag = 0;
+    // 【示例核心】state_flag 决定当前阶段；后面多个独立 if 允许同一轮继续进入下一阶段。
     int state_flag = 0;
     ros::Time time_snap;
 
     ros::Time last_request = ros::Time::now();
 
     while(ros::ok()){
+        // 【示例控制】按状态和请求间隔尝试 OFFBOARD/解锁；该开关不包围后面的状态机。
         if(AUTO_ARM_OFFBOARD==true)
         {
         if( current_state.mode != "OFFBOARD" &&
@@ -192,16 +229,19 @@ int main(int argc, char **argv)
             }
         }
         }
+        // 【次要：空分支】false 分支没有执行内容。
         if(AUTO_ARM_OFFBOARD==false)
         {
         }
 
         //ros::Duration(1.0).sleep();
+        // 【阶段 0 -> 1】接近初始 (0,0,2) 且满足请求时间间隔后，进入搜索点阶段。
         if((abs(t_wb[0])<0.2&&abs(t_wb[1])<0.2&&abs(t_wb[2]-2)<0.2)&&(ros::Time::now() - last_request > ros::Duration(5.0)))
         {
             state_flag = 1;
         }
 
+        // 【阶段 1】飞向固定搜索点 (1.5,1.5,2)，到点并看到非零相机 Z 后进入对准。
         if( state_flag == 1)
         {
          std::cout << "state 1" << std::endl;
@@ -216,6 +256,7 @@ int main(int argc, char **argv)
          }
         }
 
+        // 【阶段 2】用世界系标记位置更新 XY，高度设为标记上方 2 m；相机 XY 误差小则进入下降。
         if( state_flag == 2)
         {
          std::cout << "state 2" << std::endl;
@@ -251,6 +292,7 @@ int main(int argc, char **argv)
          }
         }
 
+        // 【阶段 3】继续跟踪标记 XY，以 0.1 m/s 随时间降低高度目标；机体 Z<0.35 时进入阶段 4。
         if( state_flag == 3)
         {
          std::cout << "state 3" << std::endl;
@@ -297,6 +339,7 @@ int main(int argc, char **argv)
         }
 
 
+         // 【阶段 4】设为标记上方 0.3 m，再次对准；满足相机 XY 误差条件则请求自动降落。
          if( state_flag == 4)
          {
          std::cout << "state 4" << std::endl;
@@ -324,6 +367,7 @@ int main(int argc, char **argv)
          } 
         }
 
+         // 【阶段 5】调用模式服务请求 AUTO.LAND，直到飞控状态反馈该模式。
          if( state_flag == 5)
          {
          if( current_state.mode != "AUTO.LAND" )
@@ -337,6 +381,7 @@ int main(int argc, char **argv)
           }
          }
 
+        // 【示例核心输出】持续发送本轮位置目标，并处理回调更新飞控与视觉信息。
         setpoint_raw_local_pub.publish(pos_setpoint);
 
         ros::spinOnce();
