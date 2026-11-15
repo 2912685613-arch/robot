@@ -39,3 +39,16 @@ roslaunch asrobot asrobot.launch \
 ## multi_comm.launch
 
 启动 `master_discovery_fkie` 和 `master_sync_fkie`，用于多机 ROS Master 通信。
+
+## aruco_sim.launch
+
+独立的 ArUco 相对定位演示。自动启动水下世界、固定机器人、朝下相机和固定 ID 5 标记；不需要先启动 single_water.sh。图像话题为 `/gazebo_robot1/camera_bottom/image_raw`，标定话题为 `/gazebo_robot1/camera_bottom/camera_info`。
+
+```bash
+source devel/setup.bash
+roslaunch asrobot aruco_sim.launch
+```
+
+详细操作和预期输出见 `src/aruco_det/README.md`。
+
+ArUco 启动文件默认在工作空间 `logs/` 下为每次运行创建独立目录，保存 `events.log`、`poses.csv` 和 `config.json`。`aruco_sim.launch`、`aruco_det.launch` 可用 `enable_logging`、`log_dir`、`log_rate` 配置；通用 `asrobot.launch` 使用 `enable_aruco_logging`、`aruco_log_dir`、`aruco_log_rate`。

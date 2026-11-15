@@ -272,6 +272,9 @@ public:  // 常用函数声明
 
 
     void thrusterforce2speed_H(float _force1,float  _force2, float _force3,float _force4);//hcy
+    // 对接专用：水平关节给出可控yaw力臂，再按URDF几何分配Fx/Fy/Fz/Mz。
+    void dockingControl(float fx, float fy, float fz, float mz);
+    void prepareDockingLegs();
     void thrusterforce2speed_X(float _force1,float  _force2, float _force3,float _force4);//hcy
     void thrusterforce2speed_G(float _force1, float _force2, float _force3, float _force4);
 };

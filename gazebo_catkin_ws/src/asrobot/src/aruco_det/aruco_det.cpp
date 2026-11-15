@@ -8,6 +8,8 @@
  */
 #include "ros/ros.h"
 #include "sensor_msgs/Image.h"
+#include <sensor_msgs/CameraInfo.h>
+#include <cmath>
 #include "cv_bridge/cv_bridge.h"
 #include <opencv2/opencv.hpp>
 #include "opencv2/highgui/highgui.hpp"
@@ -27,12 +29,41 @@
 
 // 【重要：共享数据】图像回调保存最新一帧，主循环读取；spinOnce 在本线程处理回调。
 cv::Mat frame; // Global frame variable
+cv::Mat cameraMatrix, distCoeffs;
+std_msgs::Header image_header;
+bool new_frame = false;
+
+/**
+ * @brief 【重要】读取相机发布的 K 和 D，保持内参与实际图像匹配。
+ * @param msg CameraInfo；仅接受本节点支持的针孔相机和 OpenCV 畸变模型。
+ * @return 无；有效时更新 cameraMatrix/distCoeffs，无效时继续等待。
+ */
+void camera_infoCallback(const sensor_msgs::CameraInfoConstPtr &msg)
+{
+    if (msg->K[0] <= 0 || msg->K[4] <= 0 ||
+        (!msg->distortion_model.empty() && msg->distortion_model != "plumb_bob" &&
+         msg->distortion_model != "rational_polynomial"))
+    {
+        ROS_WARN_THROTTLE(2.0, "Waiting for valid pinhole camera calibration.");
+        return;
+    }
+    for (double value : msg->K)
+        if (!std::isfinite(value)) return;
+    const auto count = msg->D.size();
+    if (count != 0 && count != 4 && count != 5 && count != 8 && count != 12 && count != 14)
+        return;
+    for (double value : msg->D)
+        if (!std::isfinite(value)) return;
+    cameraMatrix = cv::Mat(3, 3, CV_64F);
+    std::copy(msg->K.begin(), msg->K.end(), cameraMatrix.ptr<double>());
+    distCoeffs = count == 0 ? cv::Mat::zeros(5, 1, CV_64F) : cv::Mat(msg->D, true);
+}
 
 /**
  * @brief 【重要】接收相机图像，转成 OpenCV BGR8 格式，复制到全局 frame。
  * @param msg ROS 相机图像；转换失败时记录错误，保留此前的 frame。
  * @return 无；仅更新图像缓存，不在回调里执行检测，也不发布位姿。
- * 注意：没有新图像时，主循环仍可能重复处理旧帧。
+ * 主循环仅在 new_frame 为真时处理图像，没有新图像时不重复发布。
  */
 void cam_imageCallback(const sensor_msgs::ImageConstPtr &msg)
 {
@@ -40,7 +71,9 @@ void cam_imageCallback(const sensor_msgs::ImageConstPtr &msg)
     {
         cv_bridge::CvImagePtr cv_ptr;
         cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
-        frame = cv_ptr->image.clone(); // Use clone to ensure data is copied if cv_ptr goes out of scope
+        frame = cv_ptr->image.clone(); // 保存图像及其采集时间，避免重复检测旧帧。
+        image_header = msg->header;
+        new_frame = true;
     }
     catch (cv_bridge::Exception &e)
     {
@@ -52,7 +85,7 @@ void cam_imageCallback(const sensor_msgs::ImageConstPtr &msg)
 /**
  * @brief 【核心入口】配置 ROS、加载标定，然后以 10 Hz 执行检测、切换目标和发布。
  * @param argc/argv ROS 命令行参数，可用于覆盖私有参数和重映射话题。
- * @return 相机配置加载异常时返回 1，正常退出返回 0。
+ * @return 参数或离线相机配置无效时返回 1，正常退出返回 0。
  * 阅读顺序：参数 -> 相机矩阵 -> 大小码状态机 -> 目标位姿 -> ROS 发布。
  */
 int main(int argc, char **argv)
@@ -66,7 +99,9 @@ int main(int argc, char **argv)
     int dictionary_id;
     std::string camera_param_path;
     std::string sub_image_topic;
-    std::string camera_frame_id; // New parameter for camera frame_id
+    std::string camera_frame_id;
+    std::string camera_info_topic;
+    bool use_camera_info, show_debug_image;
 
     // Parameters for the outer (larger) ArUco marker
     int aruco_id_outer;
@@ -90,13 +125,24 @@ int main(int argc, char **argv)
     nh1.param<float>("aruco_length_inner", aruco_length_inner, 0.02f);
 
     nh1.param<float>("switch_depth_threshold_to_inner", switch_depth_threshold_to_inner, 0.5f);
-    nh1.param<float>("switch_depth_threshold_to_outer", switch_depth_threshold_to_outer, 0.4f);  // e.g., if inner is further than 0.25m
+    nh1.param<float>("switch_depth_threshold_to_outer", switch_depth_threshold_to_outer, 0.7f);  // 大于内切阈值，形成回差
     nh1.param<int>("inner_marker_lost_threshold_frames", inner_marker_lost_threshold_frames, 100); // e.g., 10 frames
 
-    // 【配置注意】默认路径属于旧工作目录，实际使用需通过参数指向本机存在的 YAML。
-    nh1.param<std::string>("camera_param_path", camera_param_path, "/home/jll/gazebo_catkin_ws/src/asrobot/config/camera_gazebo.yaml");
-    nh1.param<std::string>("sub_image_topic", sub_image_topic, "/gazebo_robot1/camera_bottom/camera_bottom/image_raw");
-    nh1.param<std::string>("camera_frame_id", camera_frame_id, "camera_link"); // Default camera frame
+    // 【重要】默认订阅 CameraInfo；离线标定模式由 launch 提供与机器无关的 YAML 路径。
+    nh1.param<std::string>("camera_param_path", camera_param_path, "");
+    nh1.param<std::string>("sub_image_topic", sub_image_topic, "/gazebo_robot1/camera_bottom/image_raw");
+    nh1.param<std::string>("camera_frame_id", camera_frame_id, "gazebo_robot1/camera_bottom_optical_frame");
+    nh1.param<std::string>("camera_info_topic", camera_info_topic, "/gazebo_robot1/camera_bottom/camera_info");
+    nh1.param<bool>("use_camera_info", use_camera_info, true);
+    nh1.param<bool>("show_debug_image", show_debug_image, false);
+    if (aruco_id_outer == aruco_id_inner || aruco_length_outer <= 0 || aruco_length_inner <= 0 ||
+        switch_depth_threshold_to_inner <= 0 ||
+        switch_depth_threshold_to_outer <= switch_depth_threshold_to_inner ||
+        inner_marker_lost_threshold_frames <= 0)
+    {
+        ROS_FATAL("Invalid marker parameters: IDs must differ, lengths/counts must be positive, outer threshold must exceed inner threshold.");
+        return 1;
+    }
 
     // 【次要：诊断】启动时打印配置，便于核对；不参与位姿计算。
     ROS_INFO("--- ArUco Detection Parameters ---");
@@ -115,37 +161,41 @@ int main(int argc, char **argv)
     ros::Subscriber cam_sub = n.subscribe(sub_image_topic, 1, cam_imageCallback);
     ros::Publisher aruco_det_pose_pub = n.advertise<geometry_msgs::PoseStamped>("/aruco/pose", 10);
 
+    ros::Subscriber camera_info_sub;
+    if (use_camera_info)
+        camera_info_sub = n.subscribe(camera_info_topic, 1, camera_infoCallback);
+
     cv_bridge::CvImage cv_image;
 
     cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(dictionary_id);
     cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
 
-    // 【重要：标定】fx/fy 为焦距参数，x0/y0 为主点；畸变参数用于修正镜头成像误差。
-    YAML::Node config;
-    try
+    // 【重要：标定】优先使用 CameraInfo；离线模式保留 YAML，解析异常也在此捕获。
+    if (!use_camera_info)
     {
-        config = YAML::LoadFile(camera_param_path);
+        try
+        {
+            YAML::Node config = YAML::LoadFile(camera_param_path);
+            double fx = config["fx"].as<double>();
+            double fy = config["fy"].as<double>();
+            double cx = config["x0"].as<double>();
+            double cy = config["y0"].as<double>();
+            cameraMatrix = (cv::Mat_<double>(3, 3) << fx, 0, cx, 0, fy, cy, 0, 0, 1);
+            distCoeffs = (cv::Mat_<double>(5, 1) << config["k1"].as<double>(),
+                config["k2"].as<double>(), config["p1"].as<double>(),
+                config["p2"].as<double>(), config["k3"].as<double>());
+            if (fx <= 0 || fy <= 0 || !cv::checkRange(cameraMatrix) || !cv::checkRange(distCoeffs))
+            {
+                ROS_FATAL("Invalid camera calibration in YAML.");
+                return 1;
+            }
+        }
+        catch (const YAML::Exception &e)
+        {
+            ROS_ERROR("Failed to load camera parameters from %s: %s", camera_param_path.c_str(), e.what());
+            return 1;
+        }
     }
-    catch (const YAML::Exception &e)
-    {
-        ROS_ERROR("Failed to load camera parameters from %s: %s", camera_param_path.c_str(), e.what());
-        return 1; // Exit if camera params can't be loaded
-    }
-
-    double fx = config["fx"].as<double>();
-    double fy = config["fy"].as<double>();
-    double cx = config["x0"].as<double>();
-    double cy = config["y0"].as<double>();
-    double k1 = config["k1"].as<double>();
-    double k2 = config["k2"].as<double>();
-    double p1 = config["p1"].as<double>();
-    double p2 = config["p2"].as<double>();
-    double k3 = config["k3"].as<double>();
-
-    cv::Mat cameraMatrix = (cv::Mat_<double>(3, 3) << fx, 0, cx,
-                            0, fy, cy,
-                            0, 0, 1);
-    cv::Mat distCoeffs = (cv::Mat_<double>(5, 1) << k1, k2, p1, p2, k3);
 
     // 【重要：状态】current_target_id/length 必须配套切换，边长参与米制距离估算。
     // --- State variables for target switching ---
@@ -159,8 +209,12 @@ int main(int argc, char **argv)
 
     while (ros::ok())
     {
-        if (!frame.empty())
+        ros::spinOnce();
+        if (cameraMatrix.empty())
+            ROS_WARN_THROTTLE(2.0, "Waiting for camera calibration on %s", camera_info_topic.c_str());
+        if (new_frame && !frame.empty() && !cameraMatrix.empty())
         {
+            new_frame = false;
             cv::Mat current_frame = frame.clone(); // Work on a copy of the frame
             cv::Mat gray;
             cv::cvtColor(current_frame, gray, cv::COLOR_BGR2GRAY);
@@ -209,10 +263,9 @@ int main(int argc, char **argv)
                     }
                 }
 
-                // 【核心步骤 3】大码近于 0.5 m 且小码可见时转小码；小码远于 0.4 m 或丢失过久时尝试转大码。
+                // 【核心步骤 3】默认大码近于 0.5 m 且小码可见时转小码；小码远于 0.7 m 或丢失过久时尝试转大码。
                 // 注意：这里比较相机 Z 分量，并非三维欧氏距离。
-                // 当前默认阈值在 0.4～0.5 m 重叠，两个码同时可见时可能来回切换。
-                // lost_count 统计处理循环次数；没有检查图像时间戳，未必对应不同的相机帧。
+                // 外切阈值大于内切阈值，形成回差；仅处理回调更新的帧，避免旧图重复计入丢失。
                 // --- Dual Switching Logic-切换逻辑 ---
                 if (current_target_id == aruco_id_outer)
                 {
@@ -295,8 +348,8 @@ int main(int argc, char **argv)
 
                         // 【重要：输出约定】位置为标记原点在相机系中的坐标（米），姿态为标记系到相机系的旋转。
                         geometry_msgs::PoseStamped aruco_det_pose;
-                        aruco_det_pose.header.stamp = ros::Time::now();
-                        aruco_det_pose.header.frame_id = camera_frame_id; // Use parameterized frame_id
+                        aruco_det_pose.header.stamp = image_header.stamp;
+                        aruco_det_pose.header.frame_id = image_header.frame_id.empty() ? camera_frame_id : image_header.frame_id; // Use parameterized frame_id
 
                         aruco_det_pose.pose.position.x = tvec_target[0];
                         aruco_det_pose.pose.position.y = tvec_target[1];
@@ -350,21 +403,23 @@ int main(int argc, char **argv)
                 }
             }
             // 【次要：调试显示】窗口和标注图像便于观察检测效果，计算位姿本身不依赖窗口。
-            cv::imshow("ArUco Detection", current_frame);
-            cv::waitKey(1);
+            if (show_debug_image)
+            {
+                cv::imshow("ArUco Detection", current_frame);
+                cv::waitKey(1);
+            }
 
             // Publish the image with detections
-            cv_image.header.stamp = ros::Time::now();
-            cv_image.header.frame_id = camera_frame_id; // Or a specific image frame if different
+            cv_image.header = image_header;
+            if (cv_image.header.frame_id.empty()) cv_image.header.frame_id = camera_frame_id; // Or a specific image frame if different
             cv_image.encoding = "bgr8";
             cv_image.image = current_frame;
             aruco_det_image_pub.publish(cv_image.toImageMsg());
         }
 
-        // 【重要：调度】处理订阅回调，让下一轮能读取更新的 frame；sleep 限制循环频率。
-        ros::spinOnce();
+        // 【重要：调度】每轮开头处理回调；此处限制循环频率。
         loop_rate.sleep();
     }
-    cv::destroyAllWindows();
+    if (show_debug_image) cv::destroyAllWindows();
     return 0;
 }

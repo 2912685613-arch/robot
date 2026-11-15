@@ -1,6 +1,8 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="debug" default="0"/>
+  <arg name="enable_bottom_camera" default="false"/>
+  <arg name="static_model" default="false"/>
 
   <!-- Vehicle's initial pose -->
   <arg name="x"     default="0"/>
@@ -19,7 +21,9 @@
          command="$(find xacro)/xacro --inorder '$(find new_gazebo_model)/urdf/robot/gazebo_model.xacro'
                   debug:=$(arg debug)
                   namespace:=$(arg namespace)
-                  color:=$(arg color)" />
+                  color:=$(arg color)
+                  enable_bottom_camera:=$(arg enable_bottom_camera)
+                  static_model:=$(arg static_model)" />
 
   <node name="$(arg namespace)_urdf_spawner"
         pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
@@ -39,7 +43,9 @@
            command="$(find xacro)/xacro --inorder '$(find new_gazebo_model)/urdf/robot/gazebo_model.xacro'
                     debug:=$(arg debug)
                     namespace:=$(arg namespace)
-                    color:=$(arg color)" />
+                    color:=$(arg color)
+                    enable_bottom_camera:=$(arg enable_bottom_camera)
+                    static_model:=$(arg static_model)" />
     <param name="publish_frequency" value="20" />
     <remap from="joint_states" to="/$(arg namespace)/joint_states" />
     </node>

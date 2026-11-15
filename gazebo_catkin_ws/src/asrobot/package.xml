@@ -13,10 +13,24 @@
   <depend>roscpp</depend>
   <depend>std_msgs</depend>
   <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>gazebo_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_geometry_msgs</depend>
   <depend>cv_bridge</depend>
   <depend>image_transport</depend>
   <depend>actionlib</depend>
   <depend>actionlib_msgs</depend>
+
+  <!-- 位姿关系日志节点。 -->
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>rosgraph_msgs</exec_depend>
+  <exec_depend>tf</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+
+  <!-- 独立 ArUco 仿真启动所需的模型和场景。 -->
+  <exec_depend>gazebo_world</exec_depend>
+  <exec_depend>new_gazebo_model</exec_depend>
 
   <!-- 消息生成专用依赖 -->
   <!-- message_generation 只在编译本包时需要 -->

@@ -100,3 +100,7 @@ target_link_libraries(thruster_control ${catkin_LIBRARIES})
 # )
 # add_dependencies(StereoVision_pub ${MSG_GEN_TARGET})
 # target_link_libraries(StereoVision_pub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+# 只订阅和记录的 ArUco 诊断工具，不参与控制回路。
+catkin_install_python(PROGRAMS scripts/aruco_pose_logger.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})

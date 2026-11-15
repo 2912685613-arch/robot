@@ -79,7 +79,7 @@ wait_ready() {
 launch_window world roslaunch --disable-title gazebo_world simple_underwater.launch "gui:=$GUI"
 wait_ready world
 
-launch_window model roslaunch --disable-title new_gazebo_model new_gazebo_model.launch x:=0 y:=0 z:=-0.1
+launch_window model roslaunch --disable-title new_gazebo_model new_gazebo_model.launch x:=0 y:=0 z:=-0.1 "enable_bottom_camera:=$ENABLE_ARUCO"
 wait_ready model
 
 launch_window controllers roslaunch --disable-title gazebo_control gazebo_control.launch mode:=water

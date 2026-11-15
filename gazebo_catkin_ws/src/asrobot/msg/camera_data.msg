@@ -17,3 +17,7 @@ float64 position_y
 float64 position_z
 ###
 
+
+# ArUco validity metadata
+bool aruco_valid
+float64 detection_stamp

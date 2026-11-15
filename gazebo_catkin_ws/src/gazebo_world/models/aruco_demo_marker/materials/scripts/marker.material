@@ -1,0 +1,16 @@
+material ArucoDemo/Marker5
+{
+    technique
+    {
+        pass
+        {
+            lighting off
+            cull_hardware none
+            texture_unit
+            {
+                texture marker5.png
+                filtering none
+            }
+        }
+    }
+}

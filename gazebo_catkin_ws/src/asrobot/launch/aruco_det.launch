@@ -1,7 +1,66 @@
 <launch>
-  <!-- 启动 aruco_det 节点 -->
-  <node pkg="asrobot" type="aruco_det" launch-prefix="gnome-terminal -x" name="aruco_det" output="screen" />
+  <!-- 检测可以单独接入已有仿真；图像和标定的话题中只出现一次 camera_bottom。 -->
+  <arg name="namespace" default="gazebo_robot1"/>
+  <arg name="model_name" default="$(arg namespace)"/>
+  <arg name="image_topic" default="/$(arg namespace)/camera_bottom/image_raw"/>
+  <arg name="camera_info_topic" default="/$(arg namespace)/camera_bottom/camera_info"/>
+  <arg name="camera_frame_id" default="$(arg namespace)/camera_bottom_optical_frame"/>
+  <arg name="use_camera_info" default="true"/>
+  <arg name="camera_param_path" default="$(find asrobot)/config/camera_gazebo.yaml"/>
+  <arg name="show_debug_image" default="false"/>
+  <arg name="aruco_id_outer" default="5"/>
+  <arg name="aruco_length_outer" default="0.1"/>
+  <arg name="aruco_id_inner" default="18"/>
+  <arg name="aruco_length_inner" default="0.02"/>
+  <arg name="camera_x" default="0"/>
+  <arg name="camera_y" default="0"/>
+  <arg name="camera_z" default="-0.12"/>
+  <arg name="position_z_offset" default="0"/>
+  <arg name="pose_timeout" default="0.5"/>
+  <!-- 每次运行单独落盘，路径默认指向工作空间 logs/。 -->
+  <arg name="enable_logging" default="true"/>
+  <arg name="log_dir" default="$(find asrobot)/../../logs"/>
+  <arg name="log_rate" default="2.0"/>
+  <!-- 空值表示不做标记真值比较；模型原点须与当前检测标记中心一致。 -->
+  <arg name="marker_model_name" default=""/>
 
-  <!-- 启动 aruco_posture 节点 -->
-  <node pkg="asrobot" type="aruco_posture" launch-prefix="gnome-terminal -x" name="aruco_posture" output="screen" />
+  <node pkg="asrobot" type="aruco_det" name="aruco_det" output="screen">
+    <param name="sub_image_topic" value="$(arg image_topic)"/>
+    <param name="camera_info_topic" value="$(arg camera_info_topic)"/>
+    <param name="camera_frame_id" value="$(arg camera_frame_id)"/>
+    <param name="use_camera_info" value="$(arg use_camera_info)"/>
+    <param name="camera_param_path" value="$(arg camera_param_path)"/>
+    <param name="show_debug_image" value="$(arg show_debug_image)"/>
+    <param name="dictionary_id" value="10"/>
+    <param name="aruco_id_outer" value="$(arg aruco_id_outer)"/>
+    <param name="aruco_length_outer" value="$(arg aruco_length_outer)"/>
+    <param name="aruco_id_inner" value="$(arg aruco_id_inner)"/>
+    <param name="aruco_length_inner" value="$(arg aruco_length_inner)"/>
+    <!-- 回差避免距离处于阈值附近时来回切换。 -->
+    <param name="switch_depth_threshold_to_inner" value="0.5"/>
+    <param name="switch_depth_threshold_to_outer" value="0.7"/>
+  </node>
+  <node pkg="asrobot" type="aruco_posture" name="aruco_posture" output="screen">
+    <param name="model_name" value="$(arg model_name)"/>
+    <param name="camera_frame_id" value="$(arg camera_frame_id)"/>
+    <param name="camera_x" value="$(arg camera_x)"/>
+    <param name="camera_y" value="$(arg camera_y)"/>
+    <param name="camera_z" value="$(arg camera_z)"/>
+    <param name="position_z_offset" value="$(arg position_z_offset)"/>
+    <param name="pose_timeout" value="$(arg pose_timeout)"/>
+  </node>
+  <node if="$(arg enable_logging)" pkg="asrobot" type="aruco_pose_logger.py"
+        name="aruco_pose_logger" output="screen">
+    <param name="log_dir" value="$(arg log_dir)"/>
+    <param name="log_rate" value="$(arg log_rate)"/>
+    <param name="use_camera_info" value="$(arg use_camera_info)"/>
+    <param name="model_name" value="$(arg model_name)"/>
+    <param name="marker_model_name" value="$(arg marker_model_name)"/>
+    <param name="camera_info_topic" value="$(arg camera_info_topic)"/>
+    <param name="camera_frame_id" value="$(arg camera_frame_id)"/>
+    <param name="camera_x" value="$(arg camera_x)"/>
+    <param name="camera_y" value="$(arg camera_y)"/>
+    <param name="camera_z" value="$(arg camera_z)"/>
+    <param name="pose_timeout" value="$(arg pose_timeout)"/>
+  </node>
 </launch>

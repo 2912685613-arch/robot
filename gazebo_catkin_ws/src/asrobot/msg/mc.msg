@@ -46,3 +46,16 @@ float32 cam_c_yaw
 float32 heli_traj_radius
 ###
 
+
+# ArUco validity metadata
+bool aruco_valid
+float64 aruco_stamp
+
+# World/body feedback (model truth in this Gazebo example)
+bool feedback_valid
+float64 feedback_stamp
+float64 body_vx
+float64 body_vy
+float64 body_vz
+float64 body_yaw_deg
+float64 body_yaw_rate

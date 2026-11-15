@@ -19,6 +19,9 @@
   <arg name="enable_motion" default="true"/>
   <arg name="enable_mancontrol" default="true"/>
   <arg name="enable_aruco" default="true"/>
+  <arg name="enable_aruco_logging" default="true"/>
+  <arg name="aruco_log_dir" default="$(find asrobot)/../../logs"/>
+  <arg name="aruco_log_rate" default="2.0"/>
   <arg name="decision_launch_prefix" default=""/>
   <arg name="mancontrol_launch_prefix" default="gnome-terminal --wait --title=command --"/>
 
@@ -76,17 +79,20 @@
 
   <group ns="$(arg robot)">
     <node if="$(arg enable_motion)"
-          pkg="asrobot" type="motion" name="motion" output="screen"/>
+          pkg="asrobot" type="motion" name="motion" output="screen">
+      <rosparam command="load" file="$(find asrobot)/config/docking_control.yaml"/>
+    </node>
     <node if="$(arg enable_mancontrol)"
           pkg="asrobot" type="mancontrol" name="mancontrol"
           launch-prefix="$(arg mancontrol_launch_prefix)" output="screen"/>
   </group>
 
   <!-- ArUco topics are currently global, so normally enable this only for one robot. -->
-  <group if="$(arg enable_aruco)">
-    <node pkg="asrobot" type="aruco_det"
-          name="aruco_det_$(arg robot)" output="screen"/>
-    <node pkg="asrobot" type="aruco_posture"
-          name="aruco_posture_$(arg robot)" output="screen"/>
-  </group>
+  <include if="$(arg enable_aruco)" file="$(find asrobot)/launch/aruco_det.launch">
+    <arg name="namespace" value="$(arg namespace)"/>
+    <arg name="model_name" value="$(arg model_name)"/>
+    <arg name="enable_logging" value="$(arg enable_aruco_logging)"/>
+    <arg name="log_dir" value="$(arg aruco_log_dir)"/>
+    <arg name="log_rate" value="$(arg aruco_log_rate)"/>
+  </include>
 </launch>

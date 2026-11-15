@@ -119,6 +119,13 @@ void UpdateTargetPoint()
 /*@
  * * * * * * * * * * * * * *  向单机控制器发送机器人位姿信息  * * * * * * * * * * * * * * * * * * *
  */
+// 所有视觉数据保留源图时间，接收墙钟另存，防止暂停后把旧缓存当作新测量。
+bool aruco_valid = false;
+ros::Time aruco_stamp, feedback_stamp;
+ros::WallTime aruco_received_wall, feedback_received_wall;
+double body_vx = 0, body_vy = 0, body_vz = 0, body_yaw_deg = 0, body_yaw_rate = 0;
+bool feedback_valid = false;
+
 void motion_control_pub(int _mode)
 {
     switch (_mode)
@@ -364,6 +371,8 @@ void motion_control_pub(int _mode)
         motion.cam_c_y = 0;
         motion.cam_c_z = 0;
         motion.cam_c_yaw = 0;
+        motion.c_x = robot_pos(0, 0); motion.c_y = robot_pos(1, 0); motion.c_z = robot_pos(2, 0);
+        motion.c_navyaw = yaw;
         motion.c_depthvalue = -depth;
         motion.c_speedz = robot_pos(2, 1);
 #if MOTION_PUB_PRINT_SWITCH
@@ -382,7 +391,24 @@ void motion_control_pub(int _mode)
     break;
     }
 
-    // 发布 motion
+    // 公共反馈始终填写；视觉字段只在显式有效时可用于控制。
+    const double vision_age = (ros::Time::now() - aruco_stamp).toSec();
+    motion.aruco_valid = aruco_valid && !aruco_stamp.isZero() && vision_age >= 0 && vision_age <= 0.5 &&
+        (ros::WallTime::now() - aruco_received_wall).toSec() <= 0.5;
+    motion.aruco_stamp = aruco_stamp.toSec();
+    // 普通消息也携带最新视觉值；有效性字段保护首次 dock 的回调先后顺序。
+    if (_mode == SINGLE_ROBOT_DEBUG || _mode == TRACKING_ARUCO_MODE)
+    {
+        motion.cam_e_x = aruco_pos_x; motion.cam_e_y = aruco_pos_y;
+        motion.cam_e_z = aruco_pos_z; motion.cam_e_yaw = aruco_yaw;
+    }
+    const double feedback_age = (ros::Time::now() - feedback_stamp).toSec();
+    motion.feedback_valid = feedback_valid && !feedback_stamp.isZero() &&
+        feedback_age >= 0 && feedback_age <= 0.5 &&
+        (ros::WallTime::now() - feedback_received_wall).toSec() <= 0.5;
+    motion.feedback_stamp = feedback_stamp.toSec();
+    motion.body_vx = body_vx; motion.body_vy = body_vy; motion.body_vz = body_vz;
+    motion.body_yaw_deg = body_yaw_deg; motion.body_yaw_rate = body_yaw_rate;
     mc_pub.publish(motion);
 }
 /*@
@@ -643,7 +669,26 @@ void modelStatesCallback(const gazebo_msgs::ModelStates::ConstPtr &msg)
             robot_pos(0, 1) = twist.linear.x;
             robot_pos(1, 1) = twist.linear.y;
             robot_pos(2, 1) = twist.linear.z;
-
+            Eigen::Quaterniond q(pose.orientation.w, pose.orientation.x,
+                                 pose.orientation.y, pose.orientation.z);
+            feedback_valid = q.coeffs().allFinite() && q.norm() > 1e-9 &&
+                std::isfinite(twist.linear.x) && std::isfinite(twist.linear.y) &&
+                std::isfinite(twist.linear.z) && std::isfinite(twist.angular.x) &&
+                std::isfinite(twist.angular.y) && std::isfinite(twist.angular.z) &&
+                std::isfinite(pose.position.x) && std::isfinite(pose.position.y) && std::isfinite(pose.position.z);
+            if (feedback_valid)
+            {
+                const Eigen::Matrix3d R = q.normalized().toRotationMatrix();
+                const Eigen::Vector3d vb = R.transpose() * Eigen::Vector3d(
+                    twist.linear.x, twist.linear.y, twist.linear.z);
+                const Eigen::Vector3d wb = R.transpose() * Eigen::Vector3d(
+                    twist.angular.x, twist.angular.y, twist.angular.z);
+                body_vx = vb.x(); body_vy = vb.y(); body_vz = vb.z();
+                body_yaw_deg = std::atan2(R(1, 0), R(0, 0)) * 180.0 / std::acos(-1.0);
+                body_yaw_rate = wb.z();
+                feedback_stamp = ros::Time::now();
+                feedback_received_wall = ros::WallTime::now();
+            }
             break;
         }
     }
@@ -811,6 +856,11 @@ void downCamCallback(const asrobot::camera_data::ConstPtr &msg)
     aruco_roll = msg->cam_roll;
     aruco_pitch = msg->cam_pitch;
     aruco_yaw = msg->cam_yaw;
+    aruco_valid = msg->aruco_valid && std::isfinite(msg->detection_stamp) && msg->detection_stamp > 0 &&
+        std::isfinite(msg->position_x) && std::isfinite(msg->position_y) &&
+        std::isfinite(msg->position_z) && std::isfinite(msg->cam_yaw);
+    aruco_stamp = aruco_valid ? ros::Time(msg->detection_stamp) : ros::Time(0);
+    aruco_received_wall = ros::WallTime::now();
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -914,6 +964,7 @@ void cmdcallback(const std_msgs::String::ConstPtr &msg)
     {
         docking_flag = false;
         tracking_flag = false;
+        tracking_aruco_flag = false;
     }
     cmd.clear();
 }
@@ -1082,7 +1133,8 @@ int main(int argc, char **argv)
 #endif
 
 #if SINGLE_ROBOT_DEBUG_SWITCH                   // hcy
-        motion_control_pub(SINGLE_ROBOT_DEBUG); // 发布期望路径点 以及机器人实时位置
+        if (!tracking_aruco_flag)
+            motion_control_pub(SINGLE_ROBOT_DEBUG); // 对接时每轮只发布一次，避免重复积分
 #endif
 
         /*                                                                          */

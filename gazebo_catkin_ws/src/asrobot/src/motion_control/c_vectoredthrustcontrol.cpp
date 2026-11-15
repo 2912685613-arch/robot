@@ -1,3 +1,4 @@
+#include "asrobot/aruco_docking_allocation.h"
 #include "../../include/asrobot/c_vectoredthrustcontrol.h"
 
 // 从 motion.cpp扩展过来
@@ -2036,6 +2037,38 @@ namespace VectoredThrustControl
         Leg4.set_angle(40, 0, 0, 500);
     }
 
+
+    void C_VectoredThrustControl::prepareDockingLegs()
+    {
+        Leg1.set_angle(40, 0, 0, 500);
+        Leg2.set_angle(-40, 0, 0, 500);
+        Leg3.set_angle(40, 0, 0, 500);
+        Leg4.set_angle(-40, 0, 0, 500);
+    }
+
+    void C_VectoredThrustControl::dockingControl(float fx, float fy, float fz, float mz)
+    {
+        const auto allocation = aruco_docking::allocate(fx, fy, fz, mz);
+        if (!allocation.valid)
+        {
+            ROS_ERROR_THROTTLE(1.0, "Invalid docking allocation; stopping thrusters.");
+            thrusterforce2speed(0, 0, 0, 0);
+            return;
+        }
+        Leg1.set_angle(40, 0, allocation.tilt[0], 100);
+        Leg2.set_angle(-40, 0, allocation.tilt[1], 100);
+        Leg3.set_angle(40, 0, allocation.tilt[2], 100);
+        Leg4.set_angle(-40, 0, allocation.tilt[3], 100);
+        pwm_msg.rotor_speed1 = allocation.speed[0];
+        pwm_msg.rotor_speed2 = allocation.speed[1];
+        pwm_msg.rotor_speed3 = allocation.speed[2];
+        pwm_msg.rotor_speed4 = allocation.speed[3];
+        extern_pub_pwm->publish(pwm_msg);
+        ROS_INFO_STREAM_THROTTLE(1.0, "[DOCK ALLOC] requested=" << fx << "," << fy << "," << fz << "," << mz
+            << " scale_xyyaw=" << allocation.horizontal_scale << " scale_z=" << allocation.vertical_scale
+            << " speed=" << allocation.speed[0] << "," << allocation.speed[1] << ","
+            << allocation.speed[2] << "," << allocation.speed[3]);
+    }
 
     // hcy:对电机进行针对性的力解算 X型
     void C_VectoredThrustControl::thrusterforce2speed_X(float _force1, float _force2, float _force3, float _force4)

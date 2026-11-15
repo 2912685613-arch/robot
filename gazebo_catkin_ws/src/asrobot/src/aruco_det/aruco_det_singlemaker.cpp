@@ -73,7 +73,7 @@ int main(int argc, char **argv)
     nh1.param<int>("aruco_id", aruco_id, 0);//id为0对应world中aruco_0
     nh1.param<float>("aruco_length", aruco_length, 0.1);
     nh1.param<std::string>("camera_param_path", camera_param_path, "/home/jll/gazebo_catkin_ws/src/asrobot/config/camera_gazebo.yaml"); // ljl
-    //nh1.param<std::string>("sub_image_topic", sub_image_topic, "/gazebo_robot1/camera_bottom/camera_bottom/image_raw");                 // 改gazebo的相机
+    //nh1.param<std::string>("sub_image_topic", sub_image_topic, "/gazebo_robot1/camera_bottom/image_raw");                 // 改gazebo的相机
     //nh1.param<std::string>("sub_image_topic", sub_image_topic, "/gazebo_robot1/camera/right/image_raw");//双目右眼
     nh1.param<std::string>("sub_image_topic", sub_image_topic, "/usb_cam/image_raw");//电脑的摄像头
     // 创建一个发布图像消息的发布者

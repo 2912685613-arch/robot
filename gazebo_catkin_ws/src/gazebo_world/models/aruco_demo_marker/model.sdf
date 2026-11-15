@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <model name="aruco_demo_marker">
+    <static>true</static>
+    <link name="marker">
+      <!-- 同心双码纹理 1120 px，平面边长 0.28 m：
+           ID5 黑色外边框 800 px = 0.20 m；ID18 黑色外边框 80 px = 0.02 m。
+           小码连同白边覆盖中心 120 px = 0.03 m，两个标记共享同一原点和朝向。
+           修改图案后须运行 test_aruco_setup.py 核对大码可解码和切换重叠区。 -->
+      <visual name="marker_face">
+        <cast_shadows>false</cast_shadows>
+        <geometry><plane><normal>0 0 1</normal><size>0.28 0.28</size></plane></geometry>
+        <material>
+          <script>
+            <uri>model://aruco_demo_marker/materials/scripts</uri>
+            <uri>model://aruco_demo_marker/materials/textures</uri>
+            <name>ArucoDemo/Marker5</name>
+          </script>
+          <lighting>false</lighting>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

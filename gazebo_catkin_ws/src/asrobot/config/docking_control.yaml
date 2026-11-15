@@ -1,0 +1,26 @@
+# 独立对接控制：不改变手动XYZ/PID，单位m、m/s、N、Nm；yaw误差为度，角速度rad/s。
+# 当前分配几何仅适用 new_gazebo_model + joint_command_calibration.yaml。
+docking:
+  target_z: -0.15
+  timeout: 0.5
+  wait_timeout: 3.0
+  max_speed: 0.02
+  near_speed: 0.005
+  near_distance: 0.10
+  acceleration: 0.02
+  position_kp: 0.3
+  velocity_kp: 16.0
+  velocity_ki: 0.5
+  z_force_limit: 0.6
+  xy_kp: 0.6
+  xy_kd: 0.8
+  xy_force_limit: 0.20
+  yaw_kp: 0.003
+  yaw_kd: 0.04
+  yaw_limit: 0.03
+  xy_tolerance: 0.03
+  xy_hysteresis: 0.01
+  z_tolerance: 0.01
+  velocity_tolerance: 0.005
+  yaw_tolerance: 3.0
+  settle_time: 1.0

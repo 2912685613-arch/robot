@@ -1,0 +1,44 @@
+<launch>
+  <!-- 独立相对定位示例：固定机器人、朝下相机、同心 ID 5/18 标记。
+       默认不启动控制节点，以便先观察视觉结果。已有 Gazebo 仿真需先关闭。 -->
+  <arg name="gui" default="true"/>
+  <arg name="show_debug_image" default="false"/>
+  <arg name="namespace" default="gazebo_robot1"/>
+  <arg name="enable_logging" default="true"/>
+  <arg name="log_dir" default="$(find asrobot)/../../logs"/>
+  <arg name="log_rate" default="2.0"/>
+  <arg name="robot_x" default="0"/>
+  <arg name="robot_y" default="0"/>
+  <arg name="robot_z" default="0"/>
+  <arg name="robot_yaw" default="0"/>
+  <arg name="marker_x" default="0"/>
+  <arg name="marker_y" default="0"/>
+  <arg name="marker_z" default="-1"/>
+
+  <include file="$(find gazebo_world)/launch/simple_underwater.launch">
+    <arg name="gui" value="$(arg gui)"/>
+  </include>
+  <include file="$(find new_gazebo_model)/launch/new_gazebo_model.launch">
+    <arg name="namespace" value="$(arg namespace)"/>
+    <arg name="enable_bottom_camera" value="true"/>
+    <arg name="static_model" value="true"/>
+    <arg name="x" value="$(arg robot_x)"/>
+    <arg name="y" value="$(arg robot_y)"/>
+    <arg name="z" value="$(arg robot_z)"/>
+    <arg name="yaw" value="$(arg robot_yaw)"/>
+  </include>
+  <node pkg="gazebo_ros" type="spawn_model" name="spawn_aruco_demo_marker" output="screen"
+        args="-sdf -file $(find gazebo_world)/models/aruco_demo_marker/model.sdf
+              -model aruco_demo_marker -x $(arg marker_x) -y $(arg marker_y) -z $(arg marker_z)"/>
+  <include file="$(find asrobot)/launch/aruco_det.launch">
+    <arg name="namespace" value="$(arg namespace)"/>
+    <arg name="aruco_length_outer" value="0.2"/>
+    <arg name="aruco_id_inner" value="18"/>
+    <arg name="aruco_length_inner" value="0.02"/>
+    <arg name="enable_logging" value="$(arg enable_logging)"/>
+    <arg name="log_dir" value="$(arg log_dir)"/>
+    <arg name="log_rate" value="$(arg log_rate)"/>
+    <arg name="marker_model_name" value="aruco_demo_marker"/>
+    <arg name="show_debug_image" value="$(arg show_debug_image)"/>
+  </include>
+</launch>
