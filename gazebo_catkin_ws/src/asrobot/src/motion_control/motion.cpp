@@ -3,6 +3,8 @@
 #include <sstream>
 #include <cmath>
 #include "asrobot/aruco_docking_control.h"
+#include <std_srvs/Trigger.h>
+#include <iomanip>
 
 // ===================================================================================
 //    全局发布变量
@@ -158,6 +160,9 @@ aruco_docking::Controller docking_controller;
 aruco_docking::Input docking_input;
 ros::SteadyTime docking_last_mc, docking_steering_start;
 aruco_docking::State docking_reported_state = aruco_docking::State::Idle;
+aruco_docking::Output docking_last_output;
+ros::Publisher docking_telemetry_pub;
+unsigned int docking_config_revision = 1;
 
 void reportDockingState(aruco_docking::State state, const char* reason = "none")
 {
@@ -181,16 +186,6 @@ void reportDockingState(aruco_docking::State state, const char* reason = "none")
 
 void handle_docking_aruco(const asrobot::mc::ConstPtr &msg)
 {
-    docking_input.now = ros::Time::now().toSec();
-    docking_input.sim_time = ros::Time::isSimTime();
-    docking_input.wall = ros::SteadyTime::now().toSec();
-    docking_input.vision_valid = msg->aruco_valid;
-    docking_input.feedback_valid = msg->feedback_valid;
-    docking_input.vision_stamp = msg->aruco_stamp;
-    docking_input.feedback_stamp = msg->feedback_stamp;
-    docking_input.x = msg->cam_e_x; docking_input.y = msg->cam_e_y; docking_input.z = msg->cam_e_z;
-    docking_input.vx = msg->body_vx; docking_input.vy = msg->body_vy; docking_input.vz = msg->body_vz;
-    docking_input.yaw = msg->body_yaw_deg; docking_input.yaw_rate = msg->body_yaw_rate;
     // 水平转腿期间电机关闭；不拿转腿瞬态作为位置保持稳定证据。
     if ((ros::SteadyTime::now() - docking_steering_start).toSec() < 1.0)
     {
@@ -198,6 +193,7 @@ void handle_docking_aruco(const asrobot::mc::ConstPtr &msg)
         return;
     }
     const auto output = docking_controller.update(docking_input);
+    docking_last_output = output;
     reportDockingState(output.state,output.reason);
     if (!output.active)
     {
@@ -225,6 +221,7 @@ void dockingWatchdog(const ros::WallTimerEvent &)
         // 断掉 mc_message 或停止 /clock 时也会执行，不依赖订阅回调触发停机。
         const auto output = docking_controller.transportGap(ros::SteadyTime::now().toSec(),
             ros::Time::now().toSec(),ros::Time::isSimTime());
+        docking_last_output = output;
         reportDockingState(output.state,output.reason);
         handle_idle();
     }
@@ -287,15 +284,16 @@ void mccallback(const asrobot::mc::ConstPtr &msg)
     combine3DPidCtrl.setControlMode(g_current_state == RobotMode::DEBUGVZ ||
         g_current_state == RobotMode::DEBUGPZ ? C_Combine3DPidControl::DUAL_LOOP : C_Combine3DPidControl::SINGLE_LOOP);
     docking_last_mc = ros::SteadyTime::now();
-    if (g_current_state != RobotMode::DOCKING_ARUCO)
-    {
-        // dock命令捕获最新有效反馈航向，避免强制转向零度或随小码姿态跳变。
-        docking_input.now = ros::Time::now().toSec();
-        docking_input.feedback_valid = msg->feedback_valid;
-        docking_input.feedback_stamp = msg->feedback_stamp;
-        docking_input.yaw = msg->body_yaw_deg;
-    }
-
+    docking_input.now = ros::Time::now().toSec();
+    docking_input.sim_time = ros::Time::isSimTime();
+    docking_input.wall = ros::SteadyTime::now().toSec();
+    docking_input.vision_valid = msg->aruco_valid;
+    docking_input.feedback_valid = msg->feedback_valid;
+    docking_input.vision_stamp = msg->aruco_stamp;
+    docking_input.feedback_stamp = msg->feedback_stamp;
+    docking_input.x = msg->cam_e_x; docking_input.y = msg->cam_e_y; docking_input.z = msg->cam_e_z;
+    docking_input.vx = msg->body_vx; docking_input.vy = msg->body_vy; docking_input.vz = msg->body_vz;
+    docking_input.yaw = msg->body_yaw_deg; docking_input.yaw_rate = msg->body_yaw_rate;
     // 根据当前状态，调用对应的处理函数
     // 注意：这里的逻辑现在是事件驱动的，每次收到mc_message都会执行
     switch (g_current_state)
@@ -546,38 +544,138 @@ void saveDataTimerCallback(const ros::TimerEvent &event) { /* ... */ }
 // ===================================================================================
 // 4. 主函数 (main)
 // ===================================================================================
+// 调参服务在motion主回调线程处理，与控制更新串行；成功应答表示实际控制器已重建。
+aruco_docking::Config readDockingConfig(ros::NodeHandle &nh)
+{
+    aruco_docking::Config c;
+    nh.param("docking/target_z", c.target_z, c.target_z);
+    nh.param("docking/timeout", c.timeout, c.timeout);
+    nh.param("docking/wait_timeout", c.wait_timeout, c.wait_timeout);
+    nh.param("docking/recovery_timeout", c.recovery_timeout, c.recovery_timeout);
+    nh.param("docking/transport_timeout", c.transport_timeout, c.transport_timeout);
+    nh.param("docking/reacquire_frames", c.reacquire_frames, c.reacquire_frames);
+    nh.param("docking/max_speed", c.max_speed, c.max_speed);
+    nh.param("docking/near_speed", c.near_speed, c.near_speed);
+    nh.param("docking/near_distance", c.near_distance, c.near_distance);
+    nh.param("docking/acceleration", c.acceleration, c.acceleration);
+    nh.param("docking/position_kp", c.position_kp, c.position_kp);
+    nh.param("docking/velocity_kp", c.velocity_kp, c.velocity_kp);
+    nh.param("docking/velocity_ki", c.velocity_ki, c.velocity_ki);
+    nh.param("docking/z_force_limit", c.z_force_limit, c.z_force_limit);
+    nh.param("docking/xy_kp", c.xy_kp, c.xy_kp);
+    nh.param("docking/xy_kd", c.xy_kd, c.xy_kd);
+    nh.param("docking/xy_force_limit", c.xy_force_limit, c.xy_force_limit);
+    nh.param("docking/yaw_kp", c.yaw_kp, c.yaw_kp);
+    nh.param("docking/yaw_kd", c.yaw_kd, c.yaw_kd);
+    nh.param("docking/yaw_limit", c.yaw_limit, c.yaw_limit);
+    nh.param("docking/xy_tolerance", c.xy_tolerance, c.xy_tolerance);
+    nh.param("docking/xy_hysteresis", c.xy_hysteresis, c.xy_hysteresis);
+    nh.param("docking/z_tolerance", c.z_tolerance, c.z_tolerance);
+    nh.param("docking/velocity_tolerance", c.velocity_tolerance, c.velocity_tolerance);
+    nh.param("docking/yaw_tolerance", c.yaw_tolerance, c.yaw_tolerance);
+    nh.param("docking/settle_time", c.settle_time, c.settle_time);
+    return c;
+}
+
+std::string dockingConfigJson()
+{
+    std::ostringstream out;
+    out << std::setprecision(12) << "{";
+    out << "" << "\"target_z\":" << docking_config.target_z;
+    out << "," << "\"timeout\":" << docking_config.timeout;
+    out << "," << "\"wait_timeout\":" << docking_config.wait_timeout;
+    out << "," << "\"recovery_timeout\":" << docking_config.recovery_timeout;
+    out << "," << "\"transport_timeout\":" << docking_config.transport_timeout;
+    out << "," << "\"reacquire_frames\":" << docking_config.reacquire_frames;
+    out << "," << "\"max_speed\":" << docking_config.max_speed;
+    out << "," << "\"near_speed\":" << docking_config.near_speed;
+    out << "," << "\"near_distance\":" << docking_config.near_distance;
+    out << "," << "\"acceleration\":" << docking_config.acceleration;
+    out << "," << "\"position_kp\":" << docking_config.position_kp;
+    out << "," << "\"velocity_kp\":" << docking_config.velocity_kp;
+    out << "," << "\"velocity_ki\":" << docking_config.velocity_ki;
+    out << "," << "\"z_force_limit\":" << docking_config.z_force_limit;
+    out << "," << "\"xy_kp\":" << docking_config.xy_kp;
+    out << "," << "\"xy_kd\":" << docking_config.xy_kd;
+    out << "," << "\"xy_force_limit\":" << docking_config.xy_force_limit;
+    out << "," << "\"yaw_kp\":" << docking_config.yaw_kp;
+    out << "," << "\"yaw_kd\":" << docking_config.yaw_kd;
+    out << "," << "\"yaw_limit\":" << docking_config.yaw_limit;
+    out << "," << "\"xy_tolerance\":" << docking_config.xy_tolerance;
+    out << "," << "\"xy_hysteresis\":" << docking_config.xy_hysteresis;
+    out << "," << "\"z_tolerance\":" << docking_config.z_tolerance;
+    out << "," << "\"velocity_tolerance\":" << docking_config.velocity_tolerance;
+    out << "," << "\"yaw_tolerance\":" << docking_config.yaw_tolerance;
+    out << "," << "\"settle_time\":" << docking_config.settle_time;
+    out << "}";
+    return out.str();
+}
+
+bool reloadDockingConfig(std_srvs::Trigger::Request &, std_srvs::Trigger::Response &response)
+{
+    ros::NodeHandle nh("~");
+    const auto candidate = readDockingConfig(nh);
+    if (!candidate.valid())
+    {
+        response.success = false;
+        response.message = "Invalid docking configuration; previous controller retained.";
+        return true;
+    }
+    // 参数切换前停止，不在活动控制器内带着旧积分换增益；用户需再次dock。
+    g_current_state = RobotMode::IDLE;
+    docking_controller.stop();
+    docking_config = candidate;
+    docking_controller = aruco_docking::Controller(docking_config);
+    docking_last_output = aruco_docking::Output();
+    handle_idle();
+    ++docking_config_revision;
+    reportDockingState(aruco_docking::State::Idle,"parameters_applied");
+    response.success = true;
+    response.message = dockingConfigJson();
+    ROS_INFO_STREAM("[DOCK PARAMS] applied revision=" << docking_config_revision << " " << response.message);
+    return true;
+}
+
+void dockingTelemetry(const ros::WallTimerEvent &)
+{
+    const bool dock_mode = g_current_state == RobotMode::DOCKING_ARUCO;
+    const double now = ros::Time::now().toSec();
+    const bool input_fresh = aruco_docking::Controller::fresh(docking_input,docking_config.timeout) &&
+        now-docking_input.vision_stamp >= 0 && now-docking_input.vision_stamp <= docking_config.timeout &&
+        now-docking_input.feedback_stamp >= 0 && now-docking_input.feedback_stamp <= docking_config.timeout &&
+        (ros::SteadyTime::now()-docking_last_mc).toSec() <= docking_config.timeout;
+    auto num = [](double value) {
+        if (!std::isfinite(value)) return std::string("null");
+        std::ostringstream stream; stream << std::setprecision(12) << value; return stream.str();
+    };
+    std::ostringstream out;
+    const auto &o = docking_last_output;
+    out << "{\"t\":" << num(now)
+        << ",\"state\":\"" << (dock_mode ? aruco_docking::name(docking_controller.state()) : "IDLE") << "\""
+        << ",\"reason\":\"" << (dock_mode ? o.reason : "none") << "\""
+        << ",\"active\":" << ((dock_mode && o.active && input_fresh) ? "true" : "false")
+        << ",\"valid\":" << (input_fresh ? "true" : "false")
+        << ",\"source_t\":" << num(docking_input.vision_stamp)
+        << ",\"feedback_t\":" << num(docking_input.feedback_stamp)
+        << ",\"age\":" << num(now-docking_input.vision_stamp)
+        << ",\"x\":" << num(docking_input.x) << ",\"y\":" << num(docking_input.y)
+        << ",\"z\":" << num(docking_input.z) << ",\"distance\":" << num(-docking_input.z)
+        << ",\"vx\":" << num(docking_input.vx) << ",\"vy\":" << num(docking_input.vy)
+        << ",\"vz\":" << num(docking_input.vz) << ",\"yaw\":" << num(docking_input.yaw)
+        << ",\"yaw_target\":" << num(o.yaw_target) << ",\"yaw_error\":" << num(o.yaw_error)
+        << ",\"target_vz\":" << num(o.target_vz) << ",\"fx\":" << num(o.fx)
+        << ",\"fy\":" << num(o.fy) << ",\"fz\":" << num(o.fz) << ",\"mz\":" << num(o.mz)
+        << ",\"revision\":" << docking_config_revision << ",\"config\":" << dockingConfigJson() << "}";
+    std_msgs::String message; message.data = out.str(); docking_telemetry_pub.publish(message);
+}
+
 int main(int argc, char **argv)
 {
 
     ros::init(argc, argv, "motion");
     ros::NodeHandle n;
     ros::NodeHandle private_nh("~");
-    private_nh.param("docking/target_z", docking_config.target_z, docking_config.target_z);
-    private_nh.param("docking/timeout", docking_config.timeout, docking_config.timeout);
-    private_nh.param("docking/wait_timeout", docking_config.wait_timeout, docking_config.wait_timeout);
-    private_nh.param("docking/recovery_timeout", docking_config.recovery_timeout, docking_config.recovery_timeout);
-    private_nh.param("docking/transport_timeout", docking_config.transport_timeout, docking_config.transport_timeout);
-    private_nh.param("docking/reacquire_frames", docking_config.reacquire_frames, docking_config.reacquire_frames);
-    private_nh.param("docking/max_speed", docking_config.max_speed, docking_config.max_speed);
-    private_nh.param("docking/near_speed", docking_config.near_speed, docking_config.near_speed);
-    private_nh.param("docking/near_distance", docking_config.near_distance, docking_config.near_distance);
-    private_nh.param("docking/acceleration", docking_config.acceleration, docking_config.acceleration);
-    private_nh.param("docking/position_kp", docking_config.position_kp, docking_config.position_kp);
-    private_nh.param("docking/velocity_kp", docking_config.velocity_kp, docking_config.velocity_kp);
-    private_nh.param("docking/velocity_ki", docking_config.velocity_ki, docking_config.velocity_ki);
-    private_nh.param("docking/z_force_limit", docking_config.z_force_limit, docking_config.z_force_limit);
-    private_nh.param("docking/xy_kp", docking_config.xy_kp, docking_config.xy_kp);
-    private_nh.param("docking/xy_kd", docking_config.xy_kd, docking_config.xy_kd);
-    private_nh.param("docking/xy_force_limit", docking_config.xy_force_limit, docking_config.xy_force_limit);
-    private_nh.param("docking/yaw_kp", docking_config.yaw_kp, docking_config.yaw_kp);
-    private_nh.param("docking/yaw_kd", docking_config.yaw_kd, docking_config.yaw_kd);
-    private_nh.param("docking/yaw_limit", docking_config.yaw_limit, docking_config.yaw_limit);
-    private_nh.param("docking/xy_tolerance", docking_config.xy_tolerance, docking_config.xy_tolerance);
-    private_nh.param("docking/xy_hysteresis", docking_config.xy_hysteresis, docking_config.xy_hysteresis);
-    private_nh.param("docking/z_tolerance", docking_config.z_tolerance, docking_config.z_tolerance);
-    private_nh.param("docking/velocity_tolerance", docking_config.velocity_tolerance, docking_config.velocity_tolerance);
-    private_nh.param("docking/yaw_tolerance", docking_config.yaw_tolerance, docking_config.yaw_tolerance);
-    private_nh.param("docking/settle_time", docking_config.settle_time, docking_config.settle_time);
+    docking_config = readDockingConfig(private_nh);
     if (!docking_config.valid())
     {
         ROS_FATAL("Invalid docking configuration; check docking_control.yaml.");
@@ -596,6 +694,9 @@ int main(int argc, char **argv)
     mc_pub_debug = n.advertise<asrobot::mc>("motion_debug_topic", 10);
     extern_pub_pwm = &pub_pwm;
     extern_pub_status = &pub_status;
+    docking_telemetry_pub = private_nh.advertise<std_msgs::String>("docking_telemetry",1,true);
+    ros::ServiceServer tuning_service = private_nh.advertiseService("reload_docking_config",reloadDockingConfig);
+    ros::WallTimer tuning_timer = n.createWallTimer(ros::WallDuration(0.1),dockingTelemetry);
 
     // 订阅者
     sub_depth = n.subscribe("mc_message", 100, mccallback); // 所有要执行的程序在这里

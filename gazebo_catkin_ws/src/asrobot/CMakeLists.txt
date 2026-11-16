@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   roscpp
   std_msgs
+  std_srvs
   cv_bridge
   image_transport
   sensor_msgs
@@ -38,7 +39,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include
   CATKIN_DEPENDS
-    message_runtime roscpp std_msgs cv_bridge image_transport sensor_msgs
+    message_runtime roscpp std_msgs std_srvs cv_bridge image_transport sensor_msgs
 )
 
 include_directories(
@@ -102,5 +103,11 @@ target_link_libraries(thruster_control ${catkin_LIBRARIES})
 # target_link_libraries(StereoVision_pub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
 # 只订阅和记录的 ArUco 诊断工具，不参与控制回路。
-catkin_install_python(PROGRAMS scripts/aruco_pose_logger.py
+catkin_install_python(PROGRAMS scripts/aruco_pose_logger.py scripts/tuning_dashboard.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
+# 浏览器调参台的辅助模块和离线静态资源。
+install(FILES scripts/tuning_dashboard_core.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+install(DIRECTORY web config
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})

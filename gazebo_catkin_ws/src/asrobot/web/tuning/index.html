@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ASRobot · 参数与响应实验室</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><div class="brand-symbol">A<span>↗</span></div><div><b>ASROBOT <span class="brand-light">LAB</span></b><small>控制参数 · 响应分析</small></div></div>
+  <div class="top-center"><span class="connection-dot" id="connectionDot"></span><span id="connectionText">等待数据连接</span><span class="tag" id="modeTag">实时模式</span></div>
+  <a href="/api/config.yaml" download="docking_control.yaml" class="button subtle">↓ 导出参数</a>
+</header>
+<main>
+  <div class="page-title"><div><div class="eyebrow">ARUCO DOCKING / TUNING WORKSPACE</div><h1>每一次调节，都有响应可循。</h1><p>对比参数、观察曲线，找到更平稳的接近与保持。</p></div><div class="session-info"><span>运动节点实际参数版本</span><strong id="revision">—</strong></div></div>
+  <div class="notice hidden" id="demoNotice">演示模式 · 曲线由示例模型生成，不代表当前机器人效果。这里的操作不会连接或控制机器人。</div>
+  <div class="workspace">
+    <aside class="panel parameter-panel">
+      <div class="panel-heading"><div><span class="step">01</span><h2>参数工作台</h2></div><span class="chip" id="dirtyLabel">未修改</span></div>
+      <div class="param-intro">修改后应用到运动节点。应用会停止当前对接，重新开始后使用新参数。</div>
+      <label class="search"><span>⌕</span><input id="parameterSearch" placeholder="搜索参数，如：速度、Kp" aria-label="搜索参数"></label>
+      <div id="parameterGroups"></div>
+      <div class="parameter-footer"><div class="row"><button class="button subtle" id="readButton">读取生效值</button><button class="button subtle" id="defaultButton">填入默认值</button></div><button class="button primary full" id="applyButton">应用参数并停止对接</button><p id="applyHint">尚未连接 motion 遥测</p></div>
+    </aside>
+    <section class="analysis">
+      <div class="panel controls-panel">
+        <div class="controls-title"><span class="step">02</span><h2>运行与记录</h2><span class="status-badge" id="stateBadge">未连接</span></div>
+        <div class="control-buttons"><button class="button primary" id="dockButton"><span>▶</span> 对接并记录</button><button class="button stop" id="stopButton"><span>■</span> 停止并暂停</button><button class="button subtle" id="resumeButton">恢复仿真</button><button class="button subtle" id="resetButton">↺ 重置机器人</button></div>
+        <div class="record-bar"><div><span class="record-dot" id="recordDot"></span><span id="recordText">尚未记录试验</span></div><div><button class="text-button" id="recordButton">仅开始记录</button><button class="text-button" id="finishButton">结束记录</button><a class="text-button" id="csvLink" href="/api/export.csv" download="response.csv">导出 CSV ↗</a></div></div>
+        <div class="micro-note">重置会将机器人置于世界坐标 (0, 0, −0.1 m) 并暂停。恢复仿真不会自动发出 dock。</div>
+      </div>
+      <div class="metrics-title"><div><span class="step">03</span><h2>响应表现</h2></div><select id="axisSelect" aria-label="指标通道"><option value="distance">高度响应 · m</option><option value="x">X 对准 · m</option><option value="y">Y 对准 · m</option><option value="yaw">航向响应 · °</option></select></div>
+      <div class="metric-grid">
+        <div class="metric-card"><span>超调量 <small>Overshoot</small></span><strong id="overshootValue">—</strong><p id="overshootDetail">等待有效响应</p><div class="metric-accent"></div></div>
+        <div class="metric-card"><span>上升时间 <small>Rise time</small></span><strong id="riseValue">—</strong><p>从响应幅值的 10% 到 90%</p><div class="metric-accent blue"></div></div>
+        <div class="metric-card"><span>调节时间 <small>Settling time</small></span><strong id="settlingValue">—</strong><p id="settlingDetail">进入误差带并持续稳定</p><div class="metric-accent amber"></div></div>
+        <div class="metric-card"><span>尾段平均误差 <small>Tail error</small></span><strong id="errorValue">—</strong><p id="errorDetail">目标 − 测量；不等同于已稳态</p><div class="metric-accent violet"></div></div>
+      </div>
+      <div class="panel main-chart-panel">
+        <div class="chart-heading"><div><h2 id="responseTitle">高度阶跃响应</h2><p id="metricScope">高度指标从首次进入 APPROACH 开始；使用 ROS 源时间。</p></div><div class="chart-tools"><select id="windowSelect" aria-label="时间范围"><option value="60">最近 60 秒</option><option value="180">最近 180 秒</option><option value="0">全部采样</option></select><button class="icon-button" id="freezeChart" title="仅冻结图表，不暂停机器人" aria-label="冻结图表">Ⅱ</button></div></div>
+        <div class="legend"><span><i class="line teal"></i> 实测响应</span><span><i class="line dashed"></i> 目标</span><span id="baselineLegend" class="hidden"><i class="line gray"></i> 上次试验</span><span id="sampleQuality" class="quality">等待有效采样</span></div>
+        <div class="canvas-wrap main-canvas"><canvas id="responseChart" aria-label="位置或航向随时间的曲线"></canvas><div class="chart-empty" id="responseEmpty"><div class="empty-signal">∿</div><b>等待第一条响应</b><span>启动仿真，连接 motion 遥测后开始记录。</span></div><div class="chart-tooltip hidden" id="chartTooltip"></div></div>
+        <div class="chart-footer"><span id="validText">—</span><span>暂停时不增加有效源采样；失效区间断线显示。</span></div>
+      </div>
+      <div class="small-charts">
+        <div class="panel"><div class="chart-heading"><div><h2>垂直速度</h2><p>目标限速与实际反馈 · m/s</p></div><b class="live-number" id="velocityLive">—</b></div><div class="legend"><span><i class="line blue"></i> 实测</span><span><i class="line dashed"></i> 目标</span></div><div class="canvas-wrap small-canvas"><canvas id="velocityChart" aria-label="目标和实际垂直速度"></canvas></div></div>
+        <div class="panel"><div class="chart-heading"><div><h2>推进器指令</h2><p>四电机输入 · 0–100</p></div><span class="chip">实时</span></div><div class="legend"><span><i class="dot c1"></i> 1</span><span><i class="dot c2"></i> 2</span><span><i class="dot c3"></i> 3</span><span><i class="dot c4"></i> 4</span></div><div class="canvas-wrap small-canvas"><canvas id="motorChart" aria-label="四个推进器的输入指令"></canvas></div></div>
+      </div>
+      <div class="panel history-panel"><div class="chart-heading"><div><h2>试验对比</h2><p>每次结束记录自动保存参数快照和数据，保留最近 12 次。</p></div><button class="text-button" id="clearBaseline">取消曲线对比</button></div><div class="table-scroll"><table><thead><tr><th>试验 / 参数版本</th><th>超调</th><th>10–90% 时间</th><th>调节时间</th><th>尾段误差</th><th></th></tr></thead><tbody id="historyBody"><tr><td colspan="6" class="table-empty">完成一次记录后，在这里比较响应表现。</td></tr></tbody></table></div></div>
+      <div class="panel events-panel"><div class="chart-heading"><div><h2>运行事件</h2><p>连接、状态与参数应用结果</p></div><span class="chip" id="ageBadge">—</span></div><div id="eventsList" class="events-list"></div></div>
+      <details class="metric-help"><summary>如何理解这些指标？</summary><p>超调按初始值到目标的方向计算，因此下降接近的“穿过目标高度”也会计入；百分比以初始阶跃幅值归一化。初始值已接近目标时不计算百分比。上升时间仅在连续有效采样间插值。调节时间要求尾段全部位于设定误差带，并持续达到稳定确认时间；实时结果是暂定的，后续超差会撤销。尾段平均误差采用最后约 0.5–2 秒的有效样本，未收敛时不能当作稳态误差。丢失/时间跳变会标明数据质量，暂停不会人为产生稳定时间。</p><p>航向曲线使用“当前航向 − 捕获的目标航向”的最短角度差，不把 ±180° 跳变当成旋转阶跃。所有指标使用 ROS 仿真时间，属于闭环任务的观测指标，不能单独证明控制器性能。</p></details>
+    </section>
+  </div>
+  <footer><span>ASRobot Control Studio</span><span id="storagePath">数据保存在本工作空间 logs/</span></footer>
+</main>
+<div id="toast" class="toast hidden" role="status"></div>
+<script src="/app.js"></script>
+</body></html>

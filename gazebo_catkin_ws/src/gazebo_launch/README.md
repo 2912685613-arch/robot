@@ -117,3 +117,15 @@ source devel/setup.bash
 
 
 最新通信修订（2026-11-15）：MC沉默0.5s先零输出进入WAIT_TRANSPORT；仿真/clock冻结时等待恢复，不立即永久锁死，恢复后必须连续确认3张停顿后生成的新图像与新反馈。/clock仍前进但MC长期中断，按transport_timeout=2.0s锁存LOST_STOP。数据有效期仍为0.5s。脚本pause先发st；GUI暂停则按模拟时钟停顿处理，恢复后可能继续此前对接。
+
+## 浏览器参数与响应调试台
+
+动态仿真启动后，另一个终端运行：
+
+```bash
+bash src/gazebo_launch/tuning_dashboard.sh
+```
+
+浏览器打开 `http://127.0.0.1:8765`。当前支持对接专用参数、节点确认重载、实时位置/航向/速度/电机曲线、超调/10–90%上升时间/调节时间/尾段误差、试验比较和CSV/YAML导出。
+
+无需仿真查看界面用 `bash src/gazebo_launch/tuning_dashboard.sh --demo`，演示数据不连接机器人。参数应用会停止当前对接，再次开始后使用新参数。界面不自动启动Gazebo。详见 [使用说明](../../learn/tuning_dashboard.md)。
