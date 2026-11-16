@@ -20,7 +20,7 @@ class DockingControlTests(unittest.TestCase):
         cls.temp.cleanup()
 
     def test_actual_control_and_allocator(self):
-        for case in ('validity','numeric','speed','hold','align','heading','clocks','cached','allocation','plant'):
+        for case in ('validity','numeric','speed','hold','align','heading','clocks','cached','allocation','plant','recovery','selector','latency_trace','transport_stall','transport_recovery_bad_feedback'):
             with self.subTest(case=case):
                 subprocess.run([str(self.binary),case],check=True)
 

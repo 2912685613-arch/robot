@@ -150,6 +150,12 @@ class DockingScriptTests(unittest.TestCase):
         self.assertIn('detection', stages)
 
 
+    def test_manual_pause_cancels_docking_before_physics_pause(self):
+        result, events = self.run_script('pause\nquit\n')
+        self.assertEqual(result.returncode,0,result.stdout)
+        publications=[e for e in events if e['name']=='rostopic']
+        self.assertEqual([e['args'][-1] for e in publications],['st'])
+
     def test_signal_exit_cleans_up(self):
         process = subprocess.Popen(['bash', str(self.launch / 'aruco_docking.sh')],
                                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,

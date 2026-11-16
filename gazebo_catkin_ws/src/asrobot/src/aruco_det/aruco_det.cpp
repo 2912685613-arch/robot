@@ -10,6 +10,8 @@
 #include "sensor_msgs/Image.h"
 #include <sensor_msgs/CameraInfo.h>
 #include <cmath>
+#include <limits>
+#include "asrobot/aruco_target_selector.h"
 #include "cv_bridge/cv_bridge.h"
 #include <opencv2/opencv.hpp>
 #include "opencv2/highgui/highgui.hpp"
@@ -17,6 +19,7 @@
 #include <geometry_msgs/PoseStamped.h>
 
 // For tf2 conversions
+
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h> // Includes the above and conversion functions
@@ -114,7 +117,8 @@ int main(int argc, char **argv)
     // Parameters for Z distance switching thresholds
     float switch_depth_threshold_to_inner;  // Renamed from switch_depth_threshold
     float switch_depth_threshold_to_outer;  // New parameter
-    int inner_marker_lost_threshold_frames; // New parameter
+    int inner_confirm_frames;
+    double inner_min_side_pixels;
 
     nh1.param<int>("dictionary_id", dictionary_id, 10); // e.g., DICT_6X6_250
 
@@ -124,9 +128,10 @@ int main(int argc, char **argv)
     nh1.param<int>("aruco_id_inner", aruco_id_inner, 18);
     nh1.param<float>("aruco_length_inner", aruco_length_inner, 0.02f);
 
-    nh1.param<float>("switch_depth_threshold_to_inner", switch_depth_threshold_to_inner, 0.5f);
+    nh1.param<float>("switch_depth_threshold_to_inner", switch_depth_threshold_to_inner, 0.30f);
     nh1.param<float>("switch_depth_threshold_to_outer", switch_depth_threshold_to_outer, 0.7f);  // 大于内切阈值，形成回差
-    nh1.param<int>("inner_marker_lost_threshold_frames", inner_marker_lost_threshold_frames, 100); // e.g., 10 frames
+    nh1.param<int>("inner_confirm_frames", inner_confirm_frames, 3);
+    nh1.param<double>("inner_min_side_pixels", inner_min_side_pixels, 24.0);
 
     // 【重要】默认订阅 CameraInfo；离线标定模式由 launch 提供与机器无关的 YAML 路径。
     nh1.param<std::string>("camera_param_path", camera_param_path, "");
@@ -138,7 +143,8 @@ int main(int argc, char **argv)
     if (aruco_id_outer == aruco_id_inner || aruco_length_outer <= 0 || aruco_length_inner <= 0 ||
         switch_depth_threshold_to_inner <= 0 ||
         switch_depth_threshold_to_outer <= switch_depth_threshold_to_inner ||
-        inner_marker_lost_threshold_frames <= 0)
+        inner_confirm_frames <= 0 ||
+        !std::isfinite(inner_min_side_pixels) || inner_min_side_pixels <= 0)
     {
         ROS_FATAL("Invalid marker parameters: IDs must differ, lengths/counts must be positive, outer threshold must exceed inner threshold.");
         return 1;
@@ -150,7 +156,7 @@ int main(int argc, char **argv)
     ROS_INFO("Outer ArUco ID: %d, Length: %.3f m", aruco_id_outer, aruco_length_outer);
     ROS_INFO("Inner ArUco ID: %d, Length: %.3f m", aruco_id_inner, aruco_length_inner);
     ROS_INFO("Switch to Inner Threshold (Z_outer < %.3f m)", switch_depth_threshold_to_inner);
-    ROS_INFO("Switch to Outer Threshold (Z_inner > %.3f m OR lost for %d frames)", switch_depth_threshold_to_outer, inner_marker_lost_threshold_frames);
+    ROS_INFO("Switch to Outer: inner Z > %.3f m or inner missing while outer is visible", switch_depth_threshold_to_outer);
     ROS_INFO("Camera Parameters Path: %s", camera_param_path.c_str());
     ROS_INFO("Subscribed Image Topic: %s", sub_image_topic.c_str());
     ROS_INFO("Camera Frame ID for Pose: %s", camera_frame_id.c_str());
@@ -197,11 +203,17 @@ int main(int argc, char **argv)
         }
     }
 
-    // 【重要：状态】current_target_id/length 必须配套切换，边长参与米制距离估算。
-    // --- State variables for target switching ---
-    int current_target_id = aruco_id_outer; // Initial target
+    // 大码/小码均可作为实时位姿来源；切换前确认小码像素尺寸和连续帧。
+    int current_target_id = aruco_id_outer;
     float current_target_length = aruco_length_outer;
-    int inner_marker_lost_count = 0; // Counter for how many consecutive frames inner marker is lost
+    aruco_docking::TargetConfig target_config;
+    target_config.to_inner = switch_depth_threshold_to_inner;
+    target_config.to_outer = switch_depth_threshold_to_outer;
+    target_config.confirmation_frames = inner_confirm_frames;
+    target_config.min_inner_pixels = inner_min_side_pixels;
+    aruco_docking::TargetSelector target_selector(target_config);
+    ROS_INFO("Small-marker confirmation: %d frames, min side %.1f px, depth < %.2f m",
+             inner_confirm_frames, inner_min_side_pixels, switch_depth_threshold_to_inner);
 
     ROS_INFO("Initially targeting ArUco ID %d (Outer)", current_target_id);
 
@@ -248,12 +260,17 @@ int main(int argc, char **argv)
                 }
 
                 bool inner_marker_visible_this_frame = false;
+                double inner_min_side = 0;
                 double z_distance_to_inner = -1.0; // Invalid initial value
                 auto it_inner = std::find(markerIds.begin(), markerIds.end(), aruco_id_inner);
                 if (it_inner != markerIds.end())
                 {
                     inner_marker_visible_this_frame = true;
                     int index_inner = std::distance(markerIds.begin(), it_inner);
+                    inner_min_side = std::numeric_limits<double>::infinity();
+                    for (size_t edge = 0; edge < 4; ++edge)
+                        inner_min_side = std::min(inner_min_side, cv::norm(
+                            markerCorners[index_inner][edge] - markerCorners[index_inner][(edge+1)%4]));
                     std::vector<cv::Vec3d> rvec_inner_check, tvec_inner_check;
                     std::vector<std::vector<cv::Point2f>> inner_marker_corners_subset = {markerCorners[index_inner]};
                     cv::aruco::estimatePoseSingleMarkers(inner_marker_corners_subset, aruco_length_inner, cameraMatrix, distCoeffs, rvec_inner_check, tvec_inner_check);
@@ -263,70 +280,19 @@ int main(int argc, char **argv)
                     }
                 }
 
-                // 【核心步骤 3】默认大码近于 0.5 m 且小码可见时转小码；小码远于 0.7 m 或丢失过久时尝试转大码。
-                // 注意：这里比较相机 Z 分量，并非三维欧氏距离。
-                // 外切阈值大于内切阈值，形成回差；仅处理回调更新的帧，避免旧图重复计入丢失。
-                // --- Dual Switching Logic-切换逻辑 ---
-                if (current_target_id == aruco_id_outer)
-                {
-                    // Try to switch to inner
-                    if (outer_marker_visible_this_frame && z_distance_to_outer > 0 && abs(z_distance_to_outer) < switch_depth_threshold_to_inner)
-                    {
-                        // Prefer inner if outer is close enough AND inner is also visible
-                        if (inner_marker_visible_this_frame)
-                        {
-                            current_target_id = aruco_id_inner;
-                            current_target_length = aruco_length_inner;
-                            inner_marker_lost_count = 0; // Reset counter
-                            ROS_INFO("Switching to Inner ArUco ID %d (Z_outer = %.3f m < %.3f m, Inner Visible)",
-                                     current_target_id, z_distance_to_outer, switch_depth_threshold_to_inner);
-                        }
-                        else
-                        {
-                            ROS_WARN_THROTTLE(1.0, "Outer marker close (Z=%.3f m), but inner marker ID %d not visible. Sticking to outer.", z_distance_to_outer, aruco_id_inner);
-                        }
-                    }
-                }
-                else // current_target_id == aruco_id_inner
-                {
-                    bool should_switch_to_outer = false;
-                    if (!inner_marker_visible_this_frame)
-                    {
-                        inner_marker_lost_count++;
-                        ROS_WARN_THROTTLE(1.0, "Inner ArUco ID %d lost for %d frame(s).", aruco_id_inner, inner_marker_lost_count);
-                        if (inner_marker_lost_count >= inner_marker_lost_threshold_frames)
-                        {
-                            should_switch_to_outer = true;
-                            ROS_WARN("Inner ArUco ID %d lost for %d frames. Attempting to switch to outer.", aruco_id_inner, inner_marker_lost_count);
-                        }
-                    }
-                    else // Inner marker is visible
-                    {
-                        inner_marker_lost_count = 0; // Reset counter
-                        if (z_distance_to_inner > 0 && abs(z_distance_to_inner) > switch_depth_threshold_to_outer)
-                        {
-                            should_switch_to_outer = true;
-                            ROS_INFO("Inner ArUco ID %d is too far (Z_inner = %.3f m > %.3f m). Attempting to switch to outer.",
-                                     aruco_id_inner, z_distance_to_inner, switch_depth_threshold_to_outer);
-                        }
-                    }
-
-                    if (should_switch_to_outer)
-                    {
-                        if (outer_marker_visible_this_frame)
-                        {
-                            current_target_id = aruco_id_outer;
-                            current_target_length = aruco_length_outer;
-                            ROS_INFO("Switched back to Outer ArUco ID %d.", current_target_id);
-                        }
-                        else
-                        {
-                            ROS_WARN_THROTTLE(1.0, "Wanted to switch to outer marker, but it's not visible. Sticking to inner (even if lost).");
-                            // If inner is lost and outer is also lost, we are in a difficult state.
-                            // For now, we keep current_target_id as inner, hoping it reappears.
-                        }
-                    }
-                }
+                // 大码可用时，小码偶发丢失就立即回退，不依赖旧的100帧丢失阈值。
+                const bool outer_valid = outer_marker_visible_this_frame &&
+                    std::isfinite(z_distance_to_outer) && z_distance_to_outer>0;
+                const bool inner_valid = inner_marker_visible_this_frame &&
+                    std::isfinite(z_distance_to_inner) && z_distance_to_inner>0;
+                const bool use_inner = target_selector.selectInner(outer_valid,z_distance_to_outer,
+                    inner_valid,z_distance_to_inner,inner_min_side);
+                const int next_target = use_inner ? aruco_id_inner : aruco_id_outer;
+                if (next_target != current_target_id)
+                    ROS_INFO("ArUco target switched %d -> %d: outer_z=%.3f inner_z=%.3f inner_min_side=%.1f px",
+                        current_target_id,next_target,z_distance_to_outer,z_distance_to_inner,inner_min_side);
+                current_target_id = next_target;
+                current_target_length = use_inner ? aruco_length_inner : aruco_length_outer;
 
                 // 【核心步骤 4】只发布当前选中 ID 的位姿；看到其他码并不等于当前目标有效。
                 // --- Process the current_target_id ---
@@ -381,26 +347,15 @@ int main(int argc, char **argv)
                 else // Current target not found in this frame
                 {
                     ROS_WARN_THROTTLE(1.0, "Current target ArUco ID %d not found in the frame.", current_target_id);
-                    // If current target is inner and it's lost, the switching logic above already handles incrementing lost_count.
-                    // If current target is outer and it's lost, we just report it.
-                    // Consider if we should default to outer if inner is lost and outer is visible (already handled by switching logic)
+                    // 无当前可用目标时不发布假位姿；丢小码且大码可见已在上方立即回退。
                 }
             }
             // 【重要：失效行为】没有有效目标时不发布新位姿；没有额外发布“丢失”状态。
             else // No markers detected at all
             {
                 ROS_WARN_THROTTLE(1.0, "No ArUco markers detected in the frame.");
-                if (current_target_id == aruco_id_inner)
-                {
-                    inner_marker_lost_count++;
-                    ROS_WARN_THROTTLE(1.0, "No markers, and current target is inner. Lost count: %d", inner_marker_lost_count);
-                    if (inner_marker_lost_count >= inner_marker_lost_threshold_frames)
-                    {
-                        current_target_id = aruco_id_outer; // Default back to outer if inner is lost for too long and no markers are seen
-                        current_target_length = aruco_length_outer;
-                        ROS_WARN("No markers and inner target lost for %d frames. Defaulting to Outer ArUco ID %d.", inner_marker_lost_count, current_target_id);
-                    }
-                }
+                // 连续确认必须由不同的新图像贡献；空帧会清除确认计数。
+                target_selector.selectInner(false,-1,false,-1,0);
             }
             // 【次要：调试显示】窗口和标注图像便于观察检测效果，计算位姿本身不依赖窗口。
             if (show_debug_image)

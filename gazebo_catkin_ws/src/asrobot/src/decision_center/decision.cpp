@@ -5,7 +5,7 @@
 #define SUBSCRIBE_SWITCH 1 // 接收开关
 #define TIMER_SWITCH 1     // 定时器开关
 
-#define MOTION_PUB_PRINT_SWITCH 1     // hcy
+#define MOTION_PUB_PRINT_SWITCH 0     // hcy
 #define BIONOCULAR_SUB_PRINT_SWITCH 0 // hcy
 #define DOCKING_SWITCH 0              // hcy
 #define TRACKING_SWITCH 0             // hcy
@@ -122,7 +122,7 @@ void UpdateTargetPoint()
 // 所有视觉数据保留源图时间，接收墙钟另存，防止暂停后把旧缓存当作新测量。
 bool aruco_valid = false;
 ros::Time aruco_stamp, feedback_stamp;
-ros::WallTime aruco_received_wall, feedback_received_wall;
+ros::SteadyTime aruco_received_wall, feedback_received_wall;
 double body_vx = 0, body_vy = 0, body_vz = 0, body_yaw_deg = 0, body_yaw_rate = 0;
 bool feedback_valid = false;
 
@@ -394,7 +394,7 @@ void motion_control_pub(int _mode)
     // 公共反馈始终填写；视觉字段只在显式有效时可用于控制。
     const double vision_age = (ros::Time::now() - aruco_stamp).toSec();
     motion.aruco_valid = aruco_valid && !aruco_stamp.isZero() && vision_age >= 0 && vision_age <= 0.5 &&
-        (ros::WallTime::now() - aruco_received_wall).toSec() <= 0.5;
+        (ros::SteadyTime::now() - aruco_received_wall).toSec() <= 0.5;
     motion.aruco_stamp = aruco_stamp.toSec();
     // 普通消息也携带最新视觉值；有效性字段保护首次 dock 的回调先后顺序。
     if (_mode == SINGLE_ROBOT_DEBUG || _mode == TRACKING_ARUCO_MODE)
@@ -405,7 +405,7 @@ void motion_control_pub(int _mode)
     const double feedback_age = (ros::Time::now() - feedback_stamp).toSec();
     motion.feedback_valid = feedback_valid && !feedback_stamp.isZero() &&
         feedback_age >= 0 && feedback_age <= 0.5 &&
-        (ros::WallTime::now() - feedback_received_wall).toSec() <= 0.5;
+        (ros::SteadyTime::now() - feedback_received_wall).toSec() <= 0.5;
     motion.feedback_stamp = feedback_stamp.toSec();
     motion.body_vx = body_vx; motion.body_vy = body_vy; motion.body_vz = body_vz;
     motion.body_yaw_deg = body_yaw_deg; motion.body_yaw_rate = body_yaw_rate;
@@ -687,7 +687,7 @@ void modelStatesCallback(const gazebo_msgs::ModelStates::ConstPtr &msg)
                 body_yaw_deg = std::atan2(R(1, 0), R(0, 0)) * 180.0 / std::acos(-1.0);
                 body_yaw_rate = wb.z();
                 feedback_stamp = ros::Time::now();
-                feedback_received_wall = ros::WallTime::now();
+                feedback_received_wall = ros::SteadyTime::now();
             }
             break;
         }
@@ -742,7 +742,7 @@ void achievedWaypointCallback(const asrobot::achievedWaypoint::ConstPtr &waypoin
 void depcallback(const sensor_msgs::FluidPressure::ConstPtr &msg)
 {
     depth = (msg->fluid_pressure - pressureInAir) / pressurePerMeter;
-    printf("get depth:*********************************************************%.2f\n", depth);
+    // 结构化节流日志见下方，避免每条压力消息刷屏。
 
     // 计算当前深度
     // double current_depth = (msg->fluid_pressure - pressureInAir) / pressurePerMeter;
@@ -782,7 +782,7 @@ void depcallback(const sensor_msgs::FluidPressure::ConstPtr &msg)
     last_time = current_time;
 
     // 打印深度和滤波后的速度
-    printf("Depth: %.2f m, Vz: %.2f m/s\n", depth, vz);
+    ROS_INFO_THROTTLE(1.0, "[DEPTH] depth=%.3f m velocity=%.3f m/s", depth, vz);
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -810,7 +810,7 @@ void imucallback(const sensor_msgs::Imu::ConstPtr &msg)
     yaw = atan2(2 * (q1 * q2 + q0 * q3), q0 * q0 + q1 * q1 - q2 * q2 - q3 * q3) * 57.2957; // yaw
 
     // x_linear_acceleration=linear_acceleration1*cos(yaw)+linear_acceleration2*sin(yaw);
-    printf("pitch:%4f,  roll:%4f,   yaw:%4f\n", pitch, roll, yaw);
+    ROS_INFO_THROTTLE(1.0, "[ATTITUDE] pitch=%.2f roll=%.2f yaw=%.2f deg", pitch, roll, yaw);
     //  printf("yaw_velocity:%4f,  x_linear_acceleration:%4f\n", yaw_velocity, x_linear_acceleration);
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -860,7 +860,7 @@ void downCamCallback(const asrobot::camera_data::ConstPtr &msg)
         std::isfinite(msg->position_x) && std::isfinite(msg->position_y) &&
         std::isfinite(msg->position_z) && std::isfinite(msg->cam_yaw);
     aruco_stamp = aruco_valid ? ros::Time(msg->detection_stamp) : ros::Time(0);
-    aruco_received_wall = ros::WallTime::now();
+    aruco_received_wall = ros::SteadyTime::now();
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 

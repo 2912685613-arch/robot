@@ -156,19 +156,25 @@ void handle_grasp_target()
 aruco_docking::Config docking_config;
 aruco_docking::Controller docking_controller;
 aruco_docking::Input docking_input;
-ros::WallTime docking_last_mc, docking_steering_start;
+ros::SteadyTime docking_last_mc, docking_steering_start;
 aruco_docking::State docking_reported_state = aruco_docking::State::Idle;
 
-void reportDockingState(aruco_docking::State state)
+void reportDockingState(aruco_docking::State state, const char* reason = "none")
 {
     if (state != docking_reported_state)
     {
         if (state == aruco_docking::State::Lost)
             ROS_WARN_STREAM("[DOCK STATE] " << aruco_docking::name(docking_reported_state)
-                            << " -> LOST_STOP: invalid/stale feedback or transport/clock interruption; dock required to restart.");
+                            << " -> LOST_STOP reason=" << reason
+                            << " vision_valid=" << docking_input.vision_valid
+                            << " vision_age=" << ros::Time::now().toSec()-docking_input.vision_stamp
+                            << " feedback_valid=" << docking_input.feedback_valid
+                            << " feedback_age=" << ros::Time::now().toSec()-docking_input.feedback_stamp
+                            << " mc_silence=" << (ros::SteadyTime::now()-docking_last_mc).toSec()
+                            << "; dock required to restart.");
         else
             ROS_INFO_STREAM("[DOCK STATE] " << aruco_docking::name(docking_reported_state)
-                            << " -> " << aruco_docking::name(state));
+                            << " -> " << aruco_docking::name(state) << " reason=" << reason);
         docking_reported_state = state;
     }
 }
@@ -176,7 +182,8 @@ void reportDockingState(aruco_docking::State state)
 void handle_docking_aruco(const asrobot::mc::ConstPtr &msg)
 {
     docking_input.now = ros::Time::now().toSec();
-    docking_input.wall = ros::WallTime::now().toSec();
+    docking_input.sim_time = ros::Time::isSimTime();
+    docking_input.wall = ros::SteadyTime::now().toSec();
     docking_input.vision_valid = msg->aruco_valid;
     docking_input.feedback_valid = msg->feedback_valid;
     docking_input.vision_stamp = msg->aruco_stamp;
@@ -185,13 +192,13 @@ void handle_docking_aruco(const asrobot::mc::ConstPtr &msg)
     docking_input.vx = msg->body_vx; docking_input.vy = msg->body_vy; docking_input.vz = msg->body_vz;
     docking_input.yaw = msg->body_yaw_deg; docking_input.yaw_rate = msg->body_yaw_rate;
     // 水平转腿期间电机关闭；不拿转腿瞬态作为位置保持稳定证据。
-    if ((ros::WallTime::now() - docking_steering_start).toSec() < 1.0)
+    if ((ros::SteadyTime::now() - docking_steering_start).toSec() < 1.0)
     {
         handle_idle();
         return;
     }
     const auto output = docking_controller.update(docking_input);
-    reportDockingState(output.state);
+    reportDockingState(output.state,output.reason);
     if (!output.active)
     {
         handle_idle();
@@ -199,6 +206,7 @@ void handle_docking_aruco(const asrobot::mc::ConstPtr &msg)
     }
     combine3DPidCtrl.vec_ctrl.dockingControl(output.fx, output.fy, output.fz, output.mz);
     ROS_INFO_STREAM_THROTTLE(0.5, "[DOCK CONTROL] state=" << aruco_docking::name(output.state)
+        << " reason=" << output.reason
         << " source_stamp=" << docking_input.vision_stamp
         << " age=" << docking_input.now-docking_input.vision_stamp
         << " xyz=" << docking_input.x << "," << docking_input.y << "," << docking_input.z
@@ -211,11 +219,13 @@ void handle_docking_aruco(const asrobot::mc::ConstPtr &msg)
 void dockingWatchdog(const ros::WallTimerEvent &)
 {
     if (g_current_state != RobotMode::DOCKING_ARUCO) return;
-    const double silence = (ros::WallTime::now()-docking_last_mc).toSec();
+    const double silence = (ros::SteadyTime::now()-docking_last_mc).toSec();
     if (silence > docking_config.timeout)
     {
         // 断掉 mc_message 或停止 /clock 时也会执行，不依赖订阅回调触发停机。
-        reportDockingState(docking_controller.lost().state);
+        const auto output = docking_controller.transportGap(ros::SteadyTime::now().toSec(),
+            ros::Time::now().toSec(),ros::Time::isSimTime());
+        reportDockingState(output.state,output.reason);
         handle_idle();
     }
 }
@@ -276,7 +286,7 @@ void mccallback(const asrobot::mc::ConstPtr &msg)
     combine3DPidCtrl.setFuzzyPIDEnabled(manual_pid && fuzzy_pid_enabled);
     combine3DPidCtrl.setControlMode(g_current_state == RobotMode::DEBUGVZ ||
         g_current_state == RobotMode::DEBUGPZ ? C_Combine3DPidControl::DUAL_LOOP : C_Combine3DPidControl::SINGLE_LOOP);
-    docking_last_mc = ros::WallTime::now();
+    docking_last_mc = ros::SteadyTime::now();
     if (g_current_state != RobotMode::DOCKING_ARUCO)
     {
         // dock命令捕获最新有效反馈航向，避免强制转向零度或随小码姿态跳变。
@@ -400,10 +410,10 @@ void cmdcallback(const std_msgs::String::ConstPtr &msg)
         const double now = ros::Time::now().toSec();
         const bool yaw_fresh = docking_input.feedback_valid && std::isfinite(docking_input.yaw) &&
             now-docking_input.feedback_stamp >= 0 && now-docking_input.feedback_stamp <= docking_config.timeout &&
-            (ros::WallTime::now()-docking_last_mc).toSec() <= docking_config.timeout;
-        docking_controller.start(ros::WallTime::now().toSec(), docking_input.yaw, yaw_fresh);
-        docking_steering_start = ros::WallTime::now();
-        docking_last_mc = ros::WallTime::now();
+            (ros::SteadyTime::now()-docking_last_mc).toSec() <= docking_config.timeout;
+        docking_controller.start(ros::SteadyTime::now().toSec(), docking_input.yaw, yaw_fresh);
+        docking_steering_start = ros::SteadyTime::now();
+        docking_last_mc = ros::SteadyTime::now();
         docking_reported_state = aruco_docking::State::Idle;
         reportDockingState(docking_controller.state());
         handle_idle();
@@ -545,6 +555,9 @@ int main(int argc, char **argv)
     private_nh.param("docking/target_z", docking_config.target_z, docking_config.target_z);
     private_nh.param("docking/timeout", docking_config.timeout, docking_config.timeout);
     private_nh.param("docking/wait_timeout", docking_config.wait_timeout, docking_config.wait_timeout);
+    private_nh.param("docking/recovery_timeout", docking_config.recovery_timeout, docking_config.recovery_timeout);
+    private_nh.param("docking/transport_timeout", docking_config.transport_timeout, docking_config.transport_timeout);
+    private_nh.param("docking/reacquire_frames", docking_config.reacquire_frames, docking_config.reacquire_frames);
     private_nh.param("docking/max_speed", docking_config.max_speed, docking_config.max_speed);
     private_nh.param("docking/near_speed", docking_config.near_speed, docking_config.near_speed);
     private_nh.param("docking/near_distance", docking_config.near_distance, docking_config.near_distance);

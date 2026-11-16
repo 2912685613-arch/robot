@@ -37,8 +37,10 @@
     <param name="aruco_id_inner" value="$(arg aruco_id_inner)"/>
     <param name="aruco_length_inner" value="$(arg aruco_length_inner)"/>
     <!-- 回差避免距离处于阈值附近时来回切换。 -->
-    <param name="switch_depth_threshold_to_inner" value="0.5"/>
+    <param name="switch_depth_threshold_to_inner" value="0.30"/>
     <param name="switch_depth_threshold_to_outer" value="0.7"/>
+    <param name="inner_confirm_frames" value="3"/>
+    <param name="inner_min_side_pixels" value="24"/>
   </node>
   <node pkg="asrobot" type="aruco_posture" name="aruco_posture" output="screen">
     <param name="model_name" value="$(arg model_name)"/>

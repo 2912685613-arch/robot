@@ -4,6 +4,9 @@ docking:
   target_z: -0.15
   timeout: 0.5
   wait_timeout: 3.0
+  recovery_timeout: 1.5
+  transport_timeout: 2.0
+  reacquire_frames: 3
   max_speed: 0.02
   near_speed: 0.005
   near_distance: 0.10

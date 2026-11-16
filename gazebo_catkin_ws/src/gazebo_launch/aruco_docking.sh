@@ -284,7 +284,11 @@ while IFS= read -r command_text; do
         status)
             timeout -k 2 5s "$PYTHON_BIN" "$SCRIPT_DIR/wait_aruco_docking.py" status || true
             ;;
-        pause) physics pause ;;
+        pause)
+            # 用户主动暂停先取消对接；区别于渲染/仿真卡顿后的传输恢复。
+            send_command st || { echo "停止命令未确认，请查看 commands.log" >&2; }
+            physics pause
+            ;;
         resume) physics resume ;;
         reset)
             physics resume

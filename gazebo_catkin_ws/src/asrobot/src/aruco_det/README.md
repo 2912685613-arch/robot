@@ -274,6 +274,9 @@ bash src/gazebo_launch/aruco_docking.sh
 
 离线投影测试覆盖：相机距离 0.78 m 的大码，0.50/0.40/0.35/0.30 m 的双码重叠区，以及 0.10/0.05/0.03 m 的小码识别与米制测距。0.5 m 处小码只有约 13 像素宽，默认角点下深度量化误差可能约 16%；更近时精度明显改善。这是正对平面的理想投影检查，不能替代实际 Gazebo 图像验证。
 
-重启原有脚本即可加载新纹理，无需编译。观察 aruco.log 或 events.log 中的 `Switched` / `Switching to Inner` 和 `Targeting ArUco ID 18`。若 Gazebo 仍缓存旧纹理，应完整退出 gzclient/gzserver 再启动。
+重启原有脚本即可加载新纹理，无需编译。观察 aruco.log 或 events.log 中的 `ArUco target switched 5 -> 18` 和 `Targeting ArUco ID 18`。若 Gazebo 仍缓存旧纹理，应完整退出 gzclient/gzserver 再启动。
 
 15 cm 是机体原点与标记的间距；相机光心距标记约 3 cm。2 cm 小码可以在理想居中视野中完整显示，但近距离横向容差很小，现有 5 cm XY 对齐阈值过宽。倾斜、横向偏差、渲染采样和丢码超时问题仍需后续优化。
+
+
+2026-11-15切换修订：`switch_depth_threshold_to_inner`默认0.30m，且要求小码最短边至少24px、连续3张新图像；小码漏检但大码可见时立即回退实时大码。此策略替代此前0.5m单帧切换与等待100帧的描述。动态控制的短时丢失制动/重获策略见learn/aruco_docking_hold_update.md第12节。

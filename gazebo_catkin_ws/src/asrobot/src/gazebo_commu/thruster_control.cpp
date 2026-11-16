@@ -34,7 +34,8 @@ void pwmcallback(const asrobot::pwm::ConstPtr& msg)
     rotor.data = msg->rotor_speed4;
     Propeller4_pub.publish(rotor);
 
-    cout<<"speed1:"<<msg->rotor_speed1<<"  speed2:"<<msg->rotor_speed2<<"  speed3:"<<msg->rotor_speed3<<"  speed4:"<<msg->rotor_speed4<<endl;//hcy
+    ROS_INFO_THROTTLE(1.0, "[THRUSTERS] speed=%.2f,%.2f,%.2f,%.2f",
+        msg->rotor_speed1,msg->rotor_speed2,msg->rotor_speed3,msg->rotor_speed4);
 }
 int main(int argc, char **argv)
 {
